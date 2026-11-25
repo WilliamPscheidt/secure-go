@@ -95,7 +95,7 @@ func (st *SettingsTab) initUI() {
 	st.updateStatusLabels()
 
 	// 4. Teste de Notificação
-	st.btnTestAlert = widget.NewButtonWithIcon("Testar Notificação na Área de Trabalho", theme.MailSendIcon(), func() {
+	st.btnTestAlert = widget.NewButtonWithIcon("Testar Notificação na Área de Trabalho", IconFABell, func() {
 		err := st.notifier.SendMalwareAlert("teste_simulado.exe", 9999, "Teste.Segurança.Alerta", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 		if err != nil {
 			dialog.ShowError(fmt.Errorf("falha ao disparar notificação: %v", err), st.window)
@@ -114,21 +114,21 @@ func (st *SettingsTab) updateStatusLabels() {
 }
 
 func (st *SettingsTab) Content() fyne.CanvasObject {
-	cardVT := NewPanelCard("API VIRUSTOTAL v3", NewPillBadge("RATE LIMIT 4/MIN", ColorInfo, ColorInfoBg),
+	cardVT := NewPanelCard("API VIRUSTOTAL v3", NewPillBadge("RATE LIMIT 4/MIN", ColorBluePrimary, ColorBlueAlpha),
 		container.NewVBox(
 			widget.NewLabel("Com a chave gratuita do VirusTotal, o sistema realiza até 4 req/minuto com espaçamento automático.\nHashes já catalogados como limpos no banco local NÃO consomem sua cota diária."),
 			container.NewBorder(nil, nil, nil, st.btnSaveVT, st.vtKeyEntry),
 		),
 	)
 
-	cardInterval := NewPanelCard("AGENDADOR DE MONITORAMENTO", NewPillBadge("PERIÓDICO", ColorEmerald, ColorEmeraldAlpha),
+	cardInterval := NewPanelCard("AGENDADOR DE MONITORAMENTO", NewPillBadge("PERIÓDICO", ColorCyan, ColorCyanAlpha),
 		container.NewVBox(
 			widget.NewLabel("Defina a frequência da varredura automática em segundo plano:"),
 			st.intervalSel,
 		),
 	)
 
-	cardStatus := NewPanelCard("INTEGRIDADE DOS MOTORES DE INTELIGÊNCIA", NewPillBadge("ATIVO", ColorEmerald, ColorEmeraldAlpha),
+	cardStatus := NewPanelCard("INTEGRIDADE DOS MOTORES DE INTELIGÊNCIA", NewPillBadge("ATIVO", ColorCyan, ColorCyanAlpha),
 		container.NewVBox(
 			st.lblMBStatus,
 			st.lblVTStatus,

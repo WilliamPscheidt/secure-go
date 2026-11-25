@@ -10,7 +10,6 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"secure-go/internal/cache"
@@ -72,14 +71,14 @@ func NewDashboardTab(win fyne.Window, engine *threatintel.Engine, sched *schedul
 
 func (dt *DashboardTab) initUI() {
 	// 0. Hero Card e Barra Geral de Progresso
-	dt.heroTitle = canvas.NewText("STATUS DO SISTEMA: 100% PROTEGIDO", ColorEmerald)
+	dt.heroTitle = canvas.NewText("STATUS DO SISTEMA: 100% PROTEGIDO", ColorCyan)
 	dt.heroTitle.TextStyle = fyne.TextStyle{Bold: true}
 	dt.heroTitle.TextSize = 14
 
 	dt.heroSub = canvas.NewText("Monitoramento em tempo real a cada 30 min | Cache inteligente SQLite | Telemetria de APIs ativa", ColorTextSecondary)
 	dt.heroSub.TextSize = 11
 
-	dt.btnScanNow = widget.NewButtonWithIcon("Escanear Processos Agora", theme.MediaPlayIcon(), func() {
+	dt.btnScanNow = widget.NewButtonWithIcon("Escanear Processos Agora", IconFAPlay, func() {
 		dt.btnScanNow.Disable()
 		dt.btnScanNow.SetText("Iniciando...")
 		dt.barScanProgress.SetValue(0.0)
@@ -190,7 +189,7 @@ func (dt *DashboardTab) connectScheduler() {
 				dt.heroTitle.Color = ColorDanger
 			} else {
 				dt.heroTitle.Text = "STATUS DO SISTEMA: 100% PROTEGIDO"
-				dt.heroTitle.Color = ColorEmerald
+				dt.heroTitle.Color = ColorCyan
 			}
 			dt.heroTitle.Refresh()
 		})
@@ -321,11 +320,11 @@ func (dt *DashboardTab) Content() fyne.CanvasObject {
 		heroTop,
 		scanProgressBox,
 	)
-	heroCard := NewPanelCard("CENTRAL DE MONITORAMENTO DO SISTEMA", NewPillBadge("TEMPO REAL", ColorEmerald, ColorEmeraldAlpha), heroBody)
+	heroCard := NewPanelCard("CENTRAL DE MONITORAMENTO DO SISTEMA", NewPillBadge("TEMPO REAL", ColorBluePrimary, ColorBlueAlpha), heroBody)
 
 	// 2. Métricas Principais (Cards com badges modernos e cores suaves)
-	cardTotal := NewMetricCard("PROCESSOS DO SISTEMA", "Instâncias em execução", dt.lblTotal, "ATIVOS", ColorInfo, ColorInfoBg)
-	cardSafe := NewMetricCard("HASHES SEGUROS", "Confirmados limpos em cache", dt.lblSafe, "✔ SEGUROS", ColorEmerald, ColorEmeraldAlpha)
+	cardTotal := NewMetricCard("PROCESSOS DO SISTEMA", "Instâncias em execução", dt.lblTotal, "ATIVOS", ColorBluePrimary, ColorBlueAlpha)
+	cardSafe := NewMetricCard("HASHES SEGUROS", "Confirmados limpos em cache", dt.lblSafe, "✔ SEGUROS", ColorCyan, ColorCyanAlpha)
 	cardUncat := NewMetricCard("NÃO CATALOGADOS", "Sem assinatura nas bases", dt.lblUncataloged, "❔ INÉDITOS", ColorWarn, ColorWarnBg)
 	cardThreats := NewMetricCard("AMEAÇAS CONFIRMADAS", "Malware ativo detectado", dt.lblThreats, "🚨 AMEAÇAS", ColorDanger, ColorDangerBg)
 
@@ -337,7 +336,7 @@ func (dt *DashboardTab) Content() fyne.CanvasObject {
 		dt.lblMBFile,
 		dt.barMBActivity,
 	)
-	cardMB := NewPanelCard("🌐 MALWAREBAZAAR (ABUSE.CH)", NewPillBadge("GRATUITO / ILIMITADO", ColorEmerald, ColorEmeraldAlpha), mbBody)
+	cardMB := NewPanelCard("🌐 MALWAREBAZAAR (ABUSE.CH)", NewPillBadge("GRATUITO / ILIMITADO", ColorCyan, ColorCyanAlpha), mbBody)
 
 	vtBody := container.NewVBox(
 		dt.lblVTStatus,
@@ -345,18 +344,18 @@ func (dt *DashboardTab) Content() fyne.CanvasObject {
 		dt.barVTProgress,
 		dt.lblVTTimer,
 	)
-	cardVT := NewPanelCard("🛡️ VIRUSTOTAL v3 (70+ MOTORES)", NewPillBadge("RATE LIMIT 4/MIN", ColorInfo, ColorInfoBg), vtBody)
+	cardVT := NewPanelCard("🛡️ VIRUSTOTAL v3 (70+ MOTORES)", NewPillBadge("RATE LIMIT 4/MIN", ColorBluePrimary, ColorBlueAlpha), vtBody)
 
 	telemetryGrid := container.NewGridWithColumns(2, cardMB, cardVT)
 
-	// 4. Ações Rápidas do Terminal
-	btnTestAlert := widget.NewButtonWithIcon("Testar Alerta", theme.MailSendIcon(), func() {
+	// 4. Ações Rápidas do Terminal com Ícones FontAwesome
+	btnTestAlert := widget.NewButtonWithIcon("Testar Alerta", IconFABell, func() {
 		_ = dt.notifier.SendMalwareAlert("processo_teste.exe", 1234, "Teste.Dashboard.Alerta", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 		dt.engine.Telemetry().Log(threatintel.LogLevelWarn, "Alerta", "Alerta sonoro e visual disparado na Área de Trabalho.")
 		dialog.ShowInformation("Alerta Disparado", "Notificação de teste enviada para sua Área de Trabalho!", dt.window)
 	})
 
-	btnClearLogs := widget.NewButtonWithIcon("Limpar Console", theme.DeleteIcon(), func() {
+	btnClearLogs := widget.NewButtonWithIcon("Limpar Console", IconFATrash, func() {
 		dt.mu.Lock()
 		dt.logEntries = nil
 		dt.mu.Unlock()

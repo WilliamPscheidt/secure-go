@@ -84,7 +84,7 @@ func (dt *DiskTab) initUI() {
 	dt.lblUncataloged = widget.NewLabelWithStyle("0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 	dt.lblMalicious = widget.NewLabelWithStyle("0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 
-	dt.btnStart = widget.NewButtonWithIcon("Iniciar Varredura", theme.MediaPlayIcon(), dt.startScan)
+	dt.btnStart = widget.NewButtonWithIcon("Iniciar Varredura", IconFAPlay, dt.startScan)
 	dt.btnStart.Importance = widget.HighImportance
 
 	dt.btnCancel = widget.NewButtonWithIcon("Cancelar", theme.MediaStopIcon(), func() {
@@ -250,8 +250,8 @@ func (dt *DiskTab) Content() fyne.CanvasObject {
 		),
 	)
 
-	cardTotal := NewMetricCard("ARQUIVOS NO ALVO", "Total indexado", dt.lblTotal, "TOTAL", ColorInfo, ColorInfoBg)
-	cardSafe := NewMetricCard("SEGUROS", "Confirmados limpos", dt.lblSafe, "✔ SEGUROS", ColorEmerald, ColorEmeraldAlpha)
+	cardTotal := NewMetricCard("ARQUIVOS NO ALVO", "Total indexado", dt.lblTotal, "TOTAL", ColorBluePrimary, ColorBlueAlpha)
+	cardSafe := NewMetricCard("SEGUROS", "Confirmados limpos", dt.lblSafe, "✔ SEGUROS", ColorCyan, ColorCyanAlpha)
 	cardUncat := NewMetricCard("NÃO CATALOGADOS", "Sem assinatura nas bases", dt.lblUncataloged, "❔ INÉDITOS", ColorWarn, ColorWarnBg)
 	cardMal := NewMetricCard("MALICIOSOS", "Ameaças no disco", dt.lblMalicious, "🚨 AMEAÇAS", ColorDanger, ColorDangerBg)
 

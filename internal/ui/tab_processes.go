@@ -9,7 +9,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"secure-go/internal/cache"
@@ -85,7 +84,7 @@ func (pt *ProcessTab) initUI() {
 		pt.filterItems(q)
 	}
 
-	pt.btnScanNow = widget.NewButtonWithIcon("Escanear Agora", theme.MediaPlayIcon(), func() {
+	pt.btnScanNow = widget.NewButtonWithIcon("Escanear Agora", IconFAPlay, func() {
 		pt.btnScanNow.Disable()
 		go func() {
 			pt.scheduler.TriggerNow()
@@ -171,8 +170,8 @@ func (pt *ProcessTab) initUI() {
 }
 
 func (pt *ProcessTab) Content() fyne.CanvasObject {
-	cardTotal := NewMetricCard("TOTAL PROCESSOS", "Instâncias em execução", pt.lblTotal, "ATIVOS", ColorInfo, ColorInfoBg)
-	cardSafe := NewMetricCard("SEGUROS", "Confirmados no banco local", pt.lblSafe, "✔ SEGUROS", ColorEmerald, ColorEmeraldAlpha)
+	cardTotal := NewMetricCard("TOTAL PROCESSOS", "Instâncias em execução", pt.lblTotal, "ATIVOS", ColorBluePrimary, ColorBlueAlpha)
+	cardSafe := NewMetricCard("SEGUROS", "Confirmados no banco local", pt.lblSafe, "✔ SEGUROS", ColorCyan, ColorCyanAlpha)
 	cardUncat := NewMetricCard("NÃO CATALOGADOS", "Sem assinatura nas bases", pt.lblUncataloged, "❔ INÉDITOS", ColorWarn, ColorWarnBg)
 	cardThreats := NewMetricCard("AMEAÇAS", "Malware ativo detectado", pt.lblThreats, "🚨 AMEAÇAS", ColorDanger, ColorDangerBg)
 

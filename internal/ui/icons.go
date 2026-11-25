@@ -1,0 +1,52 @@
+package ui
+
+import "fyne.io/fyne/v2"
+
+func newSVG(name, svg string) fyne.Resource {
+	return fyne.NewStaticResource(name, []byte(svg))
+}
+
+// Ícones oficiais FontAwesome 6 em formato SVG vetorial nítido
+var (
+	// IconFAShield - Ícone de proteção/antivírus moderno
+	IconFAShield = newSVG("fa-shield-halved.svg", `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="#38bdf8" d="M256 0c4.6 0 9.2 1 13.4 2.9L457.7 82.8c22 9.3 38.4 31 38.3 57.2c-.5 99.2-41.3 280.7-213.6 363.2c-16.7 8-36.1 8-52.8 0C57.3 420.7 16.5 239.2 16 140c-.1-26.2 16.3-47.9 38.3-57.2L242.7 2.9C246.8 1 251.4 0 256 0z"/></svg>`)
+
+	// IconFADashboard - Ícone de velocímetro/painel de controle
+	IconFADashboard = newSVG("fa-gauge-high.svg", `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="#60a5fa" d="M0 256a256 256 0 1 1 512 0A256 256 0 1 1 0 256zm320 96c0-26.9-16.5-49.9-39.9-59.5L345 165c4.7-9.4 1-20.9-8.4-25.6s-20.9-1-25.6 8.4l-64.9 129.8C236.4 282.5 224 297.8 224 316c0 35.3 28.7 64 64 64s64-28.7 64-64z"/></svg>`)
+
+	// IconFAProcesses - Ícone de microchip/processador
+	IconFAProcesses = newSVG("fa-microchip.svg", `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="#60a5fa" d="M192 96h128V64c0-17.7 14.3-32 32-32s32 14.3 32 32v32h32c35.3 0 64 28.7 64 64v32h32c17.7 0 32 14.3 32 32s-14.3 32-32 32h-32v64h32c17.7 0 32 14.3 32 32s-14.3 32-32 32h-32v32c0 35.3-28.7 64-64 64h-32v32c0 17.7-14.3 32-32 32s-32-14.3-32-32v-32H192v32c0 17.7-14.3 32-32 32s-32-14.3-32-32v-32h-32c-35.3 0-64-28.7-64-64v-32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32h32v-64H32c-17.7 0-32-14.3-32-32s14.3-32 32-32h32v-32c0-35.3 28.7-64 64-64h32V64c0-17.7 14.3-32 32-32s32 14.3 32 32v32zm-32 64c-17.7 0-32 14.3-32 32v128c0 17.7 14.3 32 32 32h192c17.7 0 32-14.3 32-32V192c0-17.7-14.3-32-32-32H160zm32 64h128v64H192v-64z"/></svg>`)
+
+	// IconFADisk - Ícone de disco rígido
+	IconFADisk = newSVG("fa-hard-drive.svg", `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="#60a5fa" d="M0 96C0 60.7 28.7 32 64 32h384c35.3 0 64 28.7 64 64v320c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V96zm64 240c0 17.7 14.3 32 32 32h320c17.7 0 32-14.3 32-32v-48H64v48zm336 8c0 13.3-10.7 24-24 24s-24-10.7-24-24 10.7-24 24-24 24 10.7 24 24zm-64 0c0 13.3-10.7 24-24 24s-24-10.7-24-24 10.7-24 24-24 24 10.7 24 24z"/></svg>`)
+
+	// IconFADatabase - Ícone de banco de dados
+	IconFADatabase = newSVG("fa-database.svg", `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><path fill="#60a5fa" d="M448 80v48c0 44.2-100.3 80-224 80S0 172.2 0 128V80C0 35.8 100.3 0 224 0s224 35.8 224 80zm0 112v48c0 44.2-100.3 80-224 80S0 284.2 0 240v-48c36.2 31.4 120.4 48 224 48s187.8-16.6 224-48zm0 112v48c0 44.2-100.3 80-224 80S0 396.2 0 352v-48c36.2 31.4 120.4 48 224 48s187.8-16.6 224-48zm0 112v48c0 44.2-100.3 80-224 80S0 508.2 0 464v-48c36.2 31.4 120.4 48 224 48s187.8-16.6 224-48z"/></svg>`)
+
+	// IconFAGear - Ícone de configurações/engrenagem
+	IconFAGear = newSVG("fa-gear.svg", `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="#60a5fa" d="M495.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.3 39.4c1.1 8.3 1.7 16.8 1.7 25.4s-.6 17.1-1.7 25.4l43.3 39.4c6.9 6.2 9.6 15.9 6.4 24.6l-43.3 119.2c-3.2 8.7-11.4 14.5-20.7 14.5c-2.4 0-4.8-.4-7.1-1.2l-56.1-20.4c-13.7 9.8-28.7 17.8-44.8 23.8l-12.7 58.1c-2.1 9.5-10.6 16.3-20.3 16.3h-86.6c-9.7 0-18.2-6.8-20.3-16.3l-12.7-58.1c-16.1-6-31.1-14-44.8-23.8l-56.1 20.4c-2.3 .8-4.7 1.2-7.1 1.2c-9.3 0-17.5-5.8-20.7-14.5L16.1 369.4c-3.2-8.7-.5-18.4 6.4-24.6l43.3-39.4C64.7 297.1 64.1 288.6 64.1 280s.6-17.1 1.7-25.4l-43.3-39.4c-6.9-6.2-9.6-15.9-6.4-24.6l43.3-119.2c3.2-8.7 11.4-14.5 20.7-14.5c2.4 0 4.8 .4 7.1 1.2l56.1 20.4c13.7-9.8 28.7-17.8 44.8-23.8l12.7-58.1C219.8 6.8 228.3 0 238 0h86.6c9.7 0 18.2 6.8 20.3 16.3l12.7 58.1c16.1 6 31.1 14 44.8 23.8l56.1-20.4c2.3-.8 4.7-1.2 7.1-1.2c9.3 0 17.5 5.8 20.7 14.5l43.3 119.2zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z"/></svg>`)
+
+	// IconFAPlay - Ícone de play/execução de scan
+	IconFAPlay = newSVG("fa-play.svg", `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path fill="#ffffff" d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg>`)
+
+	// IconFABell - Ícone de sino/alerta de malware
+	IconFABell = newSVG("fa-bell.svg", `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><path fill="#38bdf8" d="M224 0c-17.7 0-32 14.3-32 32V49.9C119.6 69.8 64 134.5 64 213.3v77.1L35.2 343c-6.8 8.8-10.7 19.7-10.7 31c0 28.3 22.9 51.2 51.2 51.2H372.3c28.3 0 51.2-22.9 51.2-51.2c0-11.3-3.8-22.2-10.7-31L384 290.4V213.3c0-78.8-55.6-143.5-128-163.4V32c0-17.7-14.3-32-32-32zm0 512c35.3 0 64-28.7 64-64H160c0 35.3 28.7 64 64 64z"/></svg>`)
+
+	// IconFATrash - Ícone de lixeira/limpeza de logs
+	IconFATrash = newSVG("fa-trash.svg", `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><path fill="#94a3b8" d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 47.9 45H346.9c25.3 0 46.3-19.7 47.9-45L416 128z"/></svg>`)
+
+	// IconFACheck - Ícone de verificado seguro
+	IconFACheck = newSVG("fa-circle-check.svg", `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="#38bdf8" d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM369 209L241 337c-9.4 9.4-24.6 9.4-33.9 0l-64-64c-9.4-9.4-9.4-24.6 0-33.9s24.6-9.4 33.9 0l47 47L335 175c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9z"/></svg>`)
+
+	// IconFAWarning - Ícone de alerta/não catalogado
+	IconFAWarning = newSVG("fa-triangle-exclamation.svg", `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="#f59e0b" d="M256 32c14.2 0 27.3 7.5 34.5 19.8l216 368c7.3 12.4 7.3 27.7 .2 40.1S486.3 480 472 480H40c-14.3 0-27.6-7.7-34.7-20.1s-7.1-27.8 .2-40.1l216-368C228.7 39.5 241.8 32 256 32zm0 128c-13.3 0-24 10.7-24 24V296c0 13.3 10.7 24 24 24s24-10.7 24-24V184c0-13.3-10.7-24-24-24zm32 224a32 32 0 1 0 -64 0 32 32 0 1 0 64 0z"/></svg>`)
+
+	// IconFABug - Ícone de vírus/malware
+	IconFABug = newSVG("fa-virus.svg", `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="#f43f5e" d="M256 0a256 256 0 1 0 0 512A256 256 0 1 0 256 0zM175 175c9.4-9.4 24.6-9.4 33.9 0l47 47 47-47c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9l-47 47 47 47c9.4 9.4 9.4 24.6 0 33.9s-24.6 9.4-33.9 0l-47-47-47 47c-9.4 9.4-24.6 9.4-33.9 0s-9.4-24.6 0-33.9l47-47-47-47c-9.4-9.4-9.4-24.6 0-33.9z"/></svg>`)
+
+	// IconFASearch - Ícone de lupa/busca
+	IconFASearch = newSVG("fa-magnifying-glass.svg", `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="#94a3b8" d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0s208 93.1 208 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"/></svg>`)
+
+	// IconFAServer - Ícone de servidor/nuvem
+	IconFAServer = newSVG("fa-server.svg", `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path fill="#38bdf8" d="M64 32C28.7 32 0 60.7 0 96v64c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V96c0-35.3-28.7-64-64-64H64zm280 72a24 24 0 1 1 0 48 24 24 0 1 1 0-48zm48 24a24 24 0 1 1 48 0 24 24 0 1 1 -48 0zM64 288c-35.3 0-64 28.7-64 64v64c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V352c0-35.3-28.7-64-64-64H64zm280 72a24 24 0 1 1 0 48 24 24 0 1 1 0-48zm48 24a24 24 0 1 1 48 0 24 24 0 1 1 -48 0z"/></svg>`)
+)

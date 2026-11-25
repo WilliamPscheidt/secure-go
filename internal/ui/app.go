@@ -5,7 +5,6 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/theme"
 
 	"secure-go/internal/cache"
 	"secure-go/internal/notifier"
@@ -42,28 +41,31 @@ func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notif
 	})
 
 	tabs := container.NewAppTabs(
-		container.NewTabItemWithIcon("Painel Central (Dashboard)", theme.HomeIcon(), dashboardTab.Content()),
-		container.NewTabItemWithIcon("Processos Ativos", theme.ListIcon(), processTab.Content()),
-		container.NewTabItemWithIcon("Scanner de Disco", theme.StorageIcon(), diskTab.Content()),
-		container.NewTabItemWithIcon("Banco de Hashes", theme.FolderIcon(), databaseTab.Content()),
-		container.NewTabItemWithIcon("Configurações", theme.SettingsIcon(), settingsTab.Content()),
+		container.NewTabItemWithIcon("Painel Central (Dashboard)", IconFADashboard, dashboardTab.Content()),
+		container.NewTabItemWithIcon("Processos Ativos", IconFAProcesses, processTab.Content()),
+		container.NewTabItemWithIcon("Scanner de Disco", IconFADisk, diskTab.Content()),
+		container.NewTabItemWithIcon("Banco de Hashes", IconFADatabase, databaseTab.Content()),
+		container.NewTabItemWithIcon("Configurações", IconFAGear, settingsTab.Content()),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
 
 	// Barra superior estilizada com branding e indicador de proteção
-	brandTitle := canvas.NewText("🛡️ SECURE-GO", ColorEmerald)
+	brandTitle := canvas.NewText("SECURE-GO", ColorBlueVibrant)
 	brandTitle.TextStyle = fyne.TextStyle{Bold: true}
 	brandTitle.TextSize = 14
 
-	brandSub := canvas.NewText("ENTERPRISE CYBER DEFENDER & THREAT MONITOR", ColorTextSecondary)
+	shieldImg := canvas.NewImageFromResource(IconFAShield)
+	shieldImg.SetMinSize(fyne.NewSize(18, 18))
+
+	brandSub := canvas.NewText("CYBER DEFENDER & THREAT MONITOR", ColorTextSecondary)
 	brandSub.TextSize = 11
 
-	statusPill := NewPillBadge("● PROTEÇÃO EM TEMPO REAL ATIVA", ColorEmerald, ColorEmeraldAlpha)
+	statusPill := NewPillBadge("● PROTEÇÃO ATIVA", ColorCyan, ColorCyanAlpha)
 
 	headerBanner := container.NewVBox(
 		container.NewPadded(
 			container.NewBorder(nil, nil,
-				container.NewHBox(brandTitle, canvas.NewText("|", ColorCardBorder), brandSub),
+				container.NewHBox(shieldImg, brandTitle, canvas.NewText("|", ColorCardBorder), brandSub),
 				statusPill,
 			),
 		),

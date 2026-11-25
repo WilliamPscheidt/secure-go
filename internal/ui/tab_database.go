@@ -213,8 +213,8 @@ func (dt *DatabaseTab) showAddSafeDialog() {
 }
 
 func (dt *DatabaseTab) Content() fyne.CanvasObject {
-	cardTotal := NewMetricCard("CADASTRADOS", "Total no banco SQLite", dt.lblTotal, "TOTAL", ColorInfo, ColorInfoBg)
-	cardSafe := NewMetricCard("SEGUROS", "Whitelist e confirmados", dt.lblSafe, "✔ SEGUROS", ColorEmerald, ColorEmeraldAlpha)
+	cardTotal := NewMetricCard("CADASTRADOS", "Total no banco SQLite", dt.lblTotal, "TOTAL", ColorBluePrimary, ColorBlueAlpha)
+	cardSafe := NewMetricCard("SEGUROS", "Whitelist e confirmados", dt.lblSafe, "✔ SEGUROS", ColorCyan, ColorCyanAlpha)
 	cardUncat := NewMetricCard("NÃO CATALOGADOS", "Sem registro nas bases", dt.lblUncataloged, "❔ INÉDITOS", ColorWarn, ColorWarnBg)
 	cardMal := NewMetricCard("MALICIOSOS", "Ameaças catalogadas", dt.lblMalicious, "🚨 AMEAÇAS", ColorDanger, ColorDangerBg)
 
