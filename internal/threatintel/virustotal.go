@@ -19,6 +19,7 @@ type VirusTotalClient struct {
 	limiterMu  sync.Mutex
 	lastCall   time.Time
 	interval   time.Duration // Padrão: 15s para respeitar 4 req/minuto
+	telemetry  *TelemetryHub
 }
 
 // NewVirusTotalClient instancia o cliente com a chave informada.
@@ -31,6 +32,10 @@ func NewVirusTotalClient(apiKey string) *VirusTotalClient {
 		baseURL:  "https://www.virustotal.com/api/v3/files/",
 		interval: 15 * time.Second, // Garante máximo de 4 req/min
 	}
+}
+
+func (v *VirusTotalClient) SetTelemetry(th *TelemetryHub) {
+	v.telemetry = th
 }
 
 func (v *VirusTotalClient) Name() string {
@@ -73,25 +78,46 @@ type vtResponse struct {
 
 // CheckHash consulta o hash na API v3 do VirusTotal respeitando o rate limiter.
 func (v *VirusTotalClient) CheckHash(ctx context.Context, sha256 string) (*ScanResult, error) {
+	return v.CheckHashWithFile(ctx, sha256, "")
+}
+
+// CheckHashWithFile consulta o hash informando o nome do arquivo para telemetria em tempo real.
+func (v *VirusTotalClient) CheckHashWithFile(ctx context.Context, sha256, fileName string) (*ScanResult, error) {
 	if !v.HasAPIKey() {
 		return nil, fmt.Errorf("chave de API do VirusTotal não configurada")
 	}
 
-	// Rate Limiting seguro: aguarda intervalo de segurança se necessário
+	// Rate Limiting seguro: aguarda intervalo com contagem regressiva em tempo real para a UI
 	v.limiterMu.Lock()
 	elapsed := time.Since(v.lastCall)
 	if elapsed < v.interval {
 		waitDur := v.interval - elapsed
 		v.limiterMu.Unlock()
-		select {
-		case <-time.After(waitDur):
-		case <-ctx.Done():
-			return nil, ctx.Err()
+
+		remaining := int(waitDur.Seconds())
+		for remaining > 0 {
+			if v.telemetry != nil {
+				v.telemetry.SetVTCountdown(remaining, int(v.interval.Seconds()), fileName, sha256, 1)
+			}
+			select {
+			case <-time.After(1 * time.Second):
+				remaining--
+			case <-ctx.Done():
+				if v.telemetry != nil {
+					v.telemetry.EndVTQuery()
+				}
+				return nil, ctx.Err()
+			}
 		}
 		v.limiterMu.Lock()
 	}
 	v.lastCall = time.Now()
 	v.limiterMu.Unlock()
+
+	if v.telemetry != nil {
+		v.telemetry.StartVTQuery(fileName, sha256)
+		defer v.telemetry.EndVTQuery()
+	}
 
 	reqURL := v.baseURL + sha256
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)

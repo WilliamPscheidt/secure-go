@@ -164,6 +164,9 @@ func (ds *DiskScanner) ScanDirectory(rootPath string, onlyExecutables bool) (*Di
 	}
 
 	summary.TotalFilesFound = len(filesToScan)
+	if ds.engine.Telemetry() != nil {
+		ds.engine.Telemetry().Log(threatintel.LogLevelInfo, "Scanner", fmt.Sprintf("Iniciando varredura em %s (%d arquivos no alvo)...", rootPath, len(filesToScan)))
+	}
 
 	// 2. Fila concorrente com Worker Pool
 	jobs := make(chan string, ds.numWorkers*2)
@@ -228,6 +231,10 @@ func (ds *DiskScanner) ScanDirectory(rootPath string, onlyExecutables bool) (*Di
 	}
 
 	summary.Duration = time.Since(startTime)
+	if ds.engine.Telemetry() != nil {
+		ds.engine.Telemetry().Log(threatintel.LogLevelSafe, "Scanner", fmt.Sprintf("Varredura de disco finalizada em %v (%d analisados, %d seguros, %d maliciosos)",
+			summary.Duration.Round(time.Millisecond), summary.FilesScanned, summary.SafeFiles, summary.MaliciousFiles))
+	}
 	ds.notifyCompleted(summary)
 
 	return summary, nil

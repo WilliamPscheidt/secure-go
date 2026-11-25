@@ -11,20 +11,33 @@ import (
 
 // Engine coordena o cache local persistente e as fontes de inteligência contra ameaças.
 type Engine struct {
-	store         *cache.Store
-	mbClient      *MalwareBazaarClient
-	vtClient      *VirusTotalClient
-	mu            sync.RWMutex
-	onNewVerdict  func(rec *cache.HashRecord)
+	store        *cache.Store
+	mbClient     *MalwareBazaarClient
+	vtClient     *VirusTotalClient
+	telemetry    *TelemetryHub
+	mu           sync.RWMutex
+	onNewVerdict func(rec *cache.HashRecord)
 }
 
 // NewEngine cria um novo motor unificado de análise de ameaças.
 func NewEngine(store *cache.Store, vtAPIKey string) *Engine {
+	th := NewTelemetryHub()
+	mb := NewMalwareBazaarClient()
+	mb.SetTelemetry(th)
+	vt := NewVirusTotalClient(vtAPIKey)
+	vt.SetTelemetry(th)
+
 	return &Engine{
-		store:    store,
-		mbClient: NewMalwareBazaarClient(),
-		vtClient: NewVirusTotalClient(vtAPIKey),
+		store:     store,
+		mbClient:  mb,
+		vtClient:  vt,
+		telemetry: th,
 	}
+}
+
+// Telemetry retorna o hub de eventos e telemetria ao vivo.
+func (e *Engine) Telemetry() *TelemetryHub {
+	return e.telemetry
 }
 
 // SetVirusTotalKey atualiza a chave da API do VirusTotal em tempo de execução.
@@ -61,6 +74,9 @@ func (e *Engine) AnalyzeHash(ctx context.Context, sha256, fileName, filePath str
 	// 1. Camada 1: Cache Local Persistente (se não for reanálise forçada)
 	if !forceRecheck {
 		if rec, exists, err := e.store.Get(sha256); err == nil && exists && rec != nil {
+			if e.telemetry != nil {
+				e.telemetry.RecordCacheHit(fileName, rec.Verdict == cache.VerdictSafe)
+			}
 			return &ScanResult{
 				SHA256:       rec.SHA256,
 				Verdict:      rec.Verdict,
@@ -74,7 +90,7 @@ func (e *Engine) AnalyzeHash(ctx context.Context, sha256, fileName, filePath str
 	}
 
 	// 2. Camada 2: MalwareBazaar (Consulta gratuita, rápida e sem cota estrita)
-	mbResult, mbErr := e.mbClient.CheckHash(ctx, sha256)
+	mbResult, mbErr := e.mbClient.CheckHashWithFile(ctx, sha256, fileName)
 	if mbErr == nil && mbResult != nil && mbResult.Verdict == cache.VerdictMalicious {
 		// Ameaça confirmada na base do MalwareBazaar!
 		record := &cache.HashRecord{
@@ -90,12 +106,15 @@ func (e *Engine) AnalyzeHash(ctx context.Context, sha256, fileName, filePath str
 		}
 		_ = e.store.Save(record)
 		e.notifyNewVerdict(record)
+		if e.telemetry != nil {
+			e.telemetry.Log(LogLevelDanger, "MalwareBazaar", fmt.Sprintf("🚨 AMEAÇA DETECTADA: %s (%s)", mbResult.ThreatName, fileName))
+		}
 		return mbResult, nil
 	}
 
 	// 3. Camada 3: VirusTotal (Se a chave de API estiver cadastrada)
 	if e.vtClient.HasAPIKey() {
-		vtResult, vtErr := e.vtClient.CheckHash(ctx, sha256)
+		vtResult, vtErr := e.vtClient.CheckHashWithFile(ctx, sha256, fileName)
 		if vtErr == nil && vtResult != nil {
 			record := &cache.HashRecord{
 				SHA256:       sha256,
@@ -110,6 +129,16 @@ func (e *Engine) AnalyzeHash(ctx context.Context, sha256, fileName, filePath str
 			}
 			_ = e.store.Save(record)
 			e.notifyNewVerdict(record)
+
+			if e.telemetry != nil {
+				if vtResult.Verdict == cache.VerdictMalicious {
+					e.telemetry.Log(LogLevelDanger, "VirusTotal", fmt.Sprintf("🚨 MALWARE CONFIRMADO: %s (%s)", vtResult.ThreatName, fileName))
+				} else if vtResult.Verdict == cache.VerdictSafe {
+					e.telemetry.Log(LogLevelSafe, "VirusTotal", fmt.Sprintf("✔ LIMPO CONFIRMADO por %d motores: %s", vtResult.TotalEngines, fileName))
+				} else {
+					e.telemetry.Log(LogLevelInfo, "VirusTotal", fmt.Sprintf("ℹ Resultado VirusTotal: %s (%s)", vtResult.Verdict, fileName))
+				}
+			}
 			return vtResult, nil
 		}
 	}

@@ -202,6 +202,9 @@ func (s *Scheduler) RunCycle(ctx context.Context) *ScanReport {
 	}
 
 	report.TotalProcesses = len(procs)
+	if s.engine.Telemetry() != nil {
+		s.engine.Telemetry().Log(threatintel.LogLevelInfo, "Scheduler", fmt.Sprintf("Iniciando varredura periódica de %d processos...", len(procs)))
+	}
 
 	// Mapa para evitar duplicar verificações de processos com mesmo hash neste ciclo
 	seenHashes := make(map[string]bool)
@@ -266,6 +269,9 @@ func (s *Scheduler) RunCycle(ctx context.Context) *ScanReport {
 	summary := fmt.Sprintf("Concluído: %d processos analisados (%d seguros, %d não catalogados, %d ameaças)",
 		report.TotalProcesses, report.CachedSafe, report.Uncataloged, report.ThreatsDetected)
 	s.notifyStatus(summary)
+	if s.engine.Telemetry() != nil {
+		s.engine.Telemetry().Log(threatintel.LogLevelSafe, "Scheduler", summary)
+	}
 
 	s.mu.RLock()
 	cbReport := s.onReportReady

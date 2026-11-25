@@ -29,6 +29,7 @@ func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notif
 	w.Resize(fyne.NewSize(1020, 680))
 	w.SetMaster()
 
+	dashboardTab := NewDashboardTab(w, engine, sched, notif)
 	processTab := NewProcessTab(w, engine, sched)
 	diskTab := NewDiskTab(w, engine)
 	databaseTab := NewDatabaseTab(w, engine)
@@ -37,10 +38,12 @@ func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notif
 	// Callback do engine para atualizar banco quando um novo hash for avaliado
 	engine.SetOnNewVerdictCallback(func(rec *cache.HashRecord) {
 		databaseTab.Refresh()
+		dashboardTab.updateMetrics()
 	})
 
 	tabs := container.NewAppTabs(
-		container.NewTabItemWithIcon("Processos em Tempo Real", theme.ListIcon(), processTab.Content()),
+		container.NewTabItemWithIcon("Painel Central (Dashboard)", theme.HomeIcon(), dashboardTab.Content()),
+		container.NewTabItemWithIcon("Processos Ativos", theme.ListIcon(), processTab.Content()),
 		container.NewTabItemWithIcon("Scanner de Disco", theme.StorageIcon(), diskTab.Content()),
 		container.NewTabItemWithIcon("Banco de Hashes", theme.FolderIcon(), databaseTab.Content()),
 		container.NewTabItemWithIcon("Configurações", theme.SettingsIcon(), settingsTab.Content()),
