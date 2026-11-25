@@ -185,7 +185,9 @@ func (pt *ProcessTab) Content() fyne.CanvasObject {
 }
 
 func (pt *ProcessTab) UpdateStatus(status string) {
-	pt.statusLabel.SetText(fmt.Sprintf("[%s] %s", time.Now().Format("15:04:05"), status))
+	fyne.Do(func() {
+		pt.statusLabel.SetText(fmt.Sprintf("[%s] %s", time.Now().Format("15:04:05"), status))
+	})
 }
 
 func (pt *ProcessTab) refreshProcesses() {
@@ -228,11 +230,12 @@ func (pt *ProcessTab) refreshProcesses() {
 		pt.allItems = items
 		pt.mu.Unlock()
 
-		pt.filterItems(pt.searchEntry.Text)
-
-		pt.lblTotal.SetText(fmt.Sprintf("Processos: %d", len(items)))
-		pt.lblSafe.SetText(fmt.Sprintf("Seguros (Cache): %d", safeCount))
-		pt.lblThreats.SetText(fmt.Sprintf("Ameaças: %d", threatCount))
+		fyne.Do(func() {
+			pt.filterItems(pt.searchEntry.Text)
+			pt.lblTotal.SetText(fmt.Sprintf("Processos: %d", len(items)))
+			pt.lblSafe.SetText(fmt.Sprintf("Seguros (Cache): %d", safeCount))
+			pt.lblThreats.SetText(fmt.Sprintf("Ameaças: %d", threatCount))
+		})
 	}()
 }
 

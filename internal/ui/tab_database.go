@@ -126,19 +126,20 @@ func (dt *DatabaseTab) initUI() {
 func (dt *DatabaseTab) Refresh() {
 	go func() {
 		stats, err := dt.engine.Store().GetStats()
-		if err == nil {
-			dt.lblTotal.SetText(fmt.Sprintf("Hashes Cadastrados: %d", stats.Total))
-			dt.lblSafe.SetText(fmt.Sprintf("Hashes Seguros: %d", stats.Safe))
-			dt.lblMalicious.SetText(fmt.Sprintf("Ameaças Confirmadas: %d", stats.Malicious))
-		}
+		records, _ := dt.engine.Store().ListAll(1000, 0)
 
-		records, err := dt.engine.Store().ListAll(1000, 0)
-		if err == nil {
-			dt.mu.Lock()
-			dt.records = records
-			dt.mu.Unlock()
+		dt.mu.Lock()
+		dt.records = records
+		dt.mu.Unlock()
+
+		fyne.Do(func() {
+			if err == nil {
+				dt.lblTotal.SetText(fmt.Sprintf("Hashes Cadastrados: %d", stats.Total))
+				dt.lblSafe.SetText(fmt.Sprintf("Hashes Seguros: %d", stats.Safe))
+				dt.lblMalicious.SetText(fmt.Sprintf("Ameaças Confirmadas: %d", stats.Malicious))
+			}
 			dt.filterItems(dt.searchEntry.Text)
-		}
+		})
 	}()
 }
 

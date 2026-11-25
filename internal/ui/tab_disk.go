@@ -192,24 +192,30 @@ func (dt *DiskTab) startScan() {
 			currTotal := len(dt.results)
 			dt.mu.Unlock()
 
-			// Atualiza UI periodicamente
-			dt.lblSafe.SetText(fmt.Sprintf("Seguros (Limpos): %d", safeCount))
-			dt.lblMalicious.SetText(fmt.Sprintf("Maliciosos: %d", malCount))
-			dt.lblTotal.SetText(fmt.Sprintf("Arquivos: %d", currTotal))
-			dt.resultsList.Refresh()
+			// Atualiza UI com segurança na thread do Fyne
+			fyne.Do(func() {
+				dt.lblSafe.SetText(fmt.Sprintf("Seguros (Limpos): %d", safeCount))
+				dt.lblMalicious.SetText(fmt.Sprintf("Maliciosos: %d", malCount))
+				dt.lblTotal.SetText(fmt.Sprintf("Arquivos: %d", currTotal))
+				dt.resultsList.Refresh()
+			})
 		},
 		func(scanned, total int, currentFile string) {
 			if total > 0 {
-				dt.progressBar.SetValue(float64(scanned) / float64(total))
-				dt.statusLabel.SetText(fmt.Sprintf("[%d / %d] Analisando: %s", scanned, total, currentFile))
+				fyne.Do(func() {
+					dt.progressBar.SetValue(float64(scanned) / float64(total))
+					dt.statusLabel.SetText(fmt.Sprintf("[%d / %d] Analisando: %s", scanned, total, currentFile))
+				})
 			}
 		},
 		func(summary *scanner.DiskScanSummary) {
-			dt.progressBar.SetValue(1.0)
-			dt.statusLabel.SetText(fmt.Sprintf("Varredura Concluída em %v: %d escaneados (%d seguros, %d maliciosos)",
-				summary.Duration.Round(time.Millisecond), summary.FilesScanned, summary.SafeFiles, summary.MaliciousFiles))
-			dt.btnStart.Enable()
-			dt.btnCancel.Disable()
+			fyne.Do(func() {
+				dt.progressBar.SetValue(1.0)
+				dt.statusLabel.SetText(fmt.Sprintf("Varredura Concluída em %v: %d escaneados (%d seguros, %d maliciosos)",
+					summary.Duration.Round(time.Millisecond), summary.FilesScanned, summary.SafeFiles, summary.MaliciousFiles))
+				dt.btnStart.Enable()
+				dt.btnCancel.Disable()
+			})
 		},
 	)
 
@@ -217,9 +223,11 @@ func (dt *DiskTab) startScan() {
 	go func() {
 		_, err := dt.diskScanner.ScanDirectory(targetPath, onlyExec)
 		if err != nil {
-			dt.statusLabel.SetText(fmt.Sprintf("Erro na varredura: %v", err))
-			dt.btnStart.Enable()
-			dt.btnCancel.Disable()
+			fyne.Do(func() {
+				dt.statusLabel.SetText(fmt.Sprintf("Erro na varredura: %v", err))
+				dt.btnStart.Enable()
+				dt.btnCancel.Disable()
+			})
 		}
 	}()
 }
