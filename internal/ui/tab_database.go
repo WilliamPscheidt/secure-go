@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"secure-go/internal/cache"
+	"secure-go/internal/report"
 	"secure-go/internal/threatintel"
 )
 
@@ -118,24 +121,133 @@ func (dt *DatabaseTab) initUI() {
 		rec := dt.filtered[id]
 		dt.mu.RUnlock()
 
-		mbStatus := "Pendente"
-		if rec.MBChecked {
-			mbStatus = "Verificado (Sem assinatura de malware)"
-		}
-		vtStatus := "Pendente"
-		if rec.VTChecked {
-			vtStatus = "Verificado (70+ motores)"
-		}
-
-		content := fmt.Sprintf(
-			"Arquivo: %s\nCaminho: %s\n\nHash SHA-256:\n%s\n\nVeredito: %s\nOrigem: %s\nAmeaça: %s\nDetecções: %d/%d\n\nChecagem MalwareBazaar: %s\nChecagem VirusTotal: %s\nData da Verificação: %s",
-			rec.FileName, rec.FilePath, rec.SHA256, rec.Verdict, rec.Source, rec.ThreatName, rec.Positives, rec.TotalEngines,
-			mbStatus, vtStatus, rec.CheckedAt.Format("02/01/2006 15:04:05"),
-		)
-		dlg := dialog.NewInformation("Registro do Banco Local", content, dt.window)
-		dlg.Resize(fyne.NewSize(580, 320))
-		dlg.Show()
+		dt.showRecordActionsDialog(rec)
 	}
+}
+
+func (dt *DatabaseTab) showRecordActionsDialog(rec *cache.HashRecord) {
+	mbStatus := "Pendente"
+	if rec.MBChecked {
+		mbStatus = "Verificado (Sem assinatura de ameaça)"
+	}
+	vtStatus := "Pendente"
+	if rec.VTChecked {
+		vtStatus = "Verificado (70+ motores antivírus)"
+	}
+
+	details := container.NewVBox(
+		widget.NewLabelWithStyle(fmt.Sprintf("Arquivo: %s", rec.FileName), fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabel(fmt.Sprintf("Caminho: %s", rec.FilePath)),
+		widget.NewLabel(fmt.Sprintf("Hash SHA-256:\n%s", rec.SHA256)),
+		widget.NewLabel(fmt.Sprintf("Veredito Atual: %s  |  Origem: %s", rec.Verdict, rec.Source)),
+		widget.NewLabel(fmt.Sprintf("Detecções: %d/%d  |  Ameaça: %s", rec.Positives, rec.TotalEngines, rec.ThreatName)),
+		widget.NewLabel(fmt.Sprintf("Status Bases: MB: %s | VT: %s", mbStatus, vtStatus)),
+		widget.NewLabel(fmt.Sprintf("Data: %s", rec.CheckedAt.Format("02/01/2006 15:04:05"))),
+	)
+
+	var d dialog.Dialog
+
+	btnCopy := widget.NewButton("Copiar Hash", func() {
+		dt.window.Clipboard().SetContent(rec.SHA256)
+		dialog.ShowInformation("Copiado", "Hash SHA-256 copiado para a área de transferência!", dt.window)
+	})
+
+	btnWhitelist := widget.NewButton("✔ Mover para Whitelist (Seguro)", func() {
+		_ = dt.engine.WhitelistHash(rec.SHA256, rec.FileName, rec.FilePath)
+		if d != nil {
+			d.Hide()
+		}
+		dt.Refresh()
+		dialog.ShowInformation("Atualizado", "Hash classificado como Seguro na Whitelist!", dt.window)
+	})
+	btnWhitelist.Importance = widget.HighImportance
+
+	btnBlacklist := widget.NewButton("🚨 Mover para Blacklist (Ameaça)", func() {
+		_ = dt.engine.BlacklistHash(rec.SHA256, rec.FileName, rec.FilePath, "Bloqueio manual pelo usuário")
+		if d != nil {
+			d.Hide()
+		}
+		dt.Refresh()
+		dialog.ShowInformation("Atualizado", "Hash classificado como Ameaça na Blacklist!", dt.window)
+	})
+	btnBlacklist.Importance = widget.DangerImportance
+
+	btnDelete := widget.NewButton("Excluir do Banco", func() {
+		_ = dt.engine.DeleteHash(rec.SHA256)
+		if d != nil {
+			d.Hide()
+		}
+		dt.Refresh()
+		dialog.ShowInformation("Removido", "Registro removido com sucesso do cache local.", dt.window)
+	})
+
+	actionsBox := container.NewVBox(
+		details,
+		container.NewGridWithColumns(2, btnWhitelist, btnBlacklist),
+		container.NewGridWithColumns(2, btnCopy, btnDelete),
+	)
+
+	d = dialog.NewCustom("Gerenciar Hash & Inteligência (1-Clique)", "Fechar", actionsBox, dt.window)
+	d.Resize(fyne.NewSize(580, 360))
+	d.Show()
+}
+
+func (dt *DatabaseTab) exportCSV() {
+	records, err := dt.engine.Store().ListAll(-1, 0)
+	if err != nil || len(records) == 0 {
+		dialog.ShowInformation("Aviso", "Não há registros no banco para exportar.", dt.window)
+		return
+	}
+
+	destDir := os.Getenv("USERPROFILE")
+	if destDir != "" {
+		downloads := filepath.Join(destDir, "Downloads")
+		if _, statErr := os.Stat(downloads); statErr == nil {
+			destDir = downloads
+		}
+	}
+	if destDir == "" {
+		destDir = "."
+	}
+
+	fileName := fmt.Sprintf("securego_auditoria_%s.csv", time.Now().Format("20060102_150405"))
+	outPath := filepath.Join(destDir, fileName)
+
+	if err := report.ExportToCSV(records, outPath); err != nil {
+		dialog.ShowError(fmt.Errorf("falha ao exportar CSV: %w", err), dt.window)
+		return
+	}
+
+	dialog.ShowInformation("Exportação Concluída", fmt.Sprintf("Relatório CSV exportado com sucesso para:\n%s", outPath), dt.window)
+}
+
+func (dt *DatabaseTab) exportJSON() {
+	records, err := dt.engine.Store().ListAll(-1, 0)
+	if err != nil || len(records) == 0 {
+		dialog.ShowInformation("Aviso", "Não há registros no banco para exportar.", dt.window)
+		return
+	}
+
+	destDir := os.Getenv("USERPROFILE")
+	if destDir != "" {
+		downloads := filepath.Join(destDir, "Downloads")
+		if _, statErr := os.Stat(downloads); statErr == nil {
+			destDir = downloads
+		}
+	}
+	if destDir == "" {
+		destDir = "."
+	}
+
+	fileName := fmt.Sprintf("securego_auditoria_%s.json", time.Now().Format("20060102_150405"))
+	outPath := filepath.Join(destDir, fileName)
+
+	if err := report.ExportToJSON(records, outPath); err != nil {
+		dialog.ShowError(fmt.Errorf("falha ao exportar JSON: %w", err), dt.window)
+		return
+	}
+
+	dialog.ShowInformation("Exportação Concluída", fmt.Sprintf("Relatório JSON exportado com sucesso para:\n%s", outPath), dt.window)
 }
 
 func (dt *DatabaseTab) Refresh() {
@@ -231,11 +343,15 @@ func (dt *DatabaseTab) Content() fyne.CanvasObject {
 	cardUncat := NewMetricCard("NÃO CATALOGADOS", "Sem registro nas bases", dt.lblUncataloged, "❔ INÉDITOS", ColorWarn, ColorWarnBg)
 	cardMal := NewMetricCard("MALICIOSOS", "Ameaças catalogadas", dt.lblMalicious, "🚨 AMEAÇAS", ColorDanger, ColorDangerBg)
 
-	btnAdd := widget.NewButtonWithIcon("Adicionar à Whitelist", theme.ContentAddIcon(), dt.showAddSafeDialog)
+	btnAdd := widget.NewButtonWithIcon("Adicionar Whitelist", theme.ContentAddIcon(), dt.showAddSafeDialog)
 	btnAdd.Importance = widget.HighImportance
 
+	btnExportCSV := widget.NewButtonWithIcon("Exportar CSV", IconFAFileCsv, dt.exportCSV)
+	btnExportJSON := widget.NewButtonWithIcon("Exportar JSON", IconFADatabase, dt.exportJSON)
+	btnRefresh := widget.NewButtonWithIcon("Recarregar", theme.ViewRefreshIcon(), dt.Refresh)
+
 	toolbarPanel := NewPanelCard("PESQUISA E GESTÃO DO BANCO DE HASHES",
-		container.NewHBox(btnAdd, widget.NewButtonWithIcon("Recarregar", theme.ViewRefreshIcon(), dt.Refresh)),
+		container.NewHBox(btnAdd, btnExportCSV, btnExportJSON, btnRefresh),
 		dt.searchEntry,
 	)
 

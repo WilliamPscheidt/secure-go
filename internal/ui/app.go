@@ -10,14 +10,16 @@ import (
 	"secure-go/internal/notifier"
 	"secure-go/internal/scheduler"
 	"secure-go/internal/threatintel"
+	"secure-go/internal/watcher"
 )
 
 type App struct {
-	fyneApp   fyne.App
-	window    fyne.Window
-	engine    *threatintel.Engine
-	scheduler *scheduler.Scheduler
-	notifier  *notifier.Notifier
+	fyneApp     fyne.App
+	window      fyne.Window
+	engine      *threatintel.Engine
+	scheduler   *scheduler.Scheduler
+	notifier    *notifier.Notifier
+	fileWatcher *watcher.FileWatcher
 }
 
 func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notifier.Notifier) *App {
@@ -25,11 +27,16 @@ func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notif
 	a.Settings().SetTheme(NewCustomTheme())
 
 	w := a.NewWindow("SecureGo - Monitor em Tempo Real & Analisador de Ameaças")
-	w.Resize(fyne.NewSize(1020, 680))
+	w.Resize(fyne.NewSize(1060, 700))
 	w.SetMaster()
+
+	// Inicia FileWatcher em tempo real para pastas críticas (Downloads, Temp, Startup)
+	fileWatcher := watcher.NewFileWatcher(engine, notif)
+	_ = fileWatcher.Start()
 
 	dashboardTab := NewDashboardTab(w, engine, sched, notif)
 	processTab := NewProcessTab(w, engine, sched)
+	networkTab := NewNetworkTab(w, engine)
 	diskTab := NewDiskTab(w, engine)
 	databaseTab := NewDatabaseTab(w, engine)
 	settingsTab := NewSettingsTab(w, engine, sched, notif)
@@ -43,6 +50,7 @@ func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notif
 	tabs := container.NewAppTabs(
 		container.NewTabItemWithIcon("Painel Central (Dashboard)", IconFADashboard, dashboardTab.Content()),
 		container.NewTabItemWithIcon("Processos Ativos", IconFAProcesses, processTab.Content()),
+		container.NewTabItemWithIcon("Mapa de Rede", IconFANetwork, networkTab.Content()),
 		container.NewTabItemWithIcon("Scanner de Disco", IconFADisk, diskTab.Content()),
 		container.NewTabItemWithIcon("Banco de Hashes", IconFADatabase, databaseTab.Content()),
 		container.NewTabItemWithIcon("Configurações", IconFAGear, settingsTab.Content()),
@@ -60,7 +68,7 @@ func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notif
 	brandSub := canvas.NewText("CYBER DEFENDER & THREAT MONITOR", ColorTextSecondary)
 	brandSub.TextSize = 11
 
-	statusPill := NewPillBadge("● PROTEÇÃO ATIVA", ColorCyan, ColorCyanAlpha)
+	statusPill := NewPillBadge("● TEMPO REAL ATIVO (WATCHER + HEURÍSTICA)", ColorCyan, ColorCyanAlpha)
 
 	headerBanner := container.NewVBox(
 		container.NewPadded(
@@ -74,12 +82,17 @@ func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notif
 
 	w.SetContent(container.NewBorder(headerBanner, nil, nil, nil, tabs))
 
+	w.SetOnClosed(func() {
+		fileWatcher.Stop()
+	})
+
 	return &App{
-		fyneApp:   a,
-		window:    w,
-		engine:    engine,
-		scheduler: sched,
-		notifier:  notif,
+		fyneApp:     a,
+		window:      w,
+		engine:      engine,
+		scheduler:   sched,
+		notifier:    notif,
+		fileWatcher: fileWatcher,
 	}
 }
 

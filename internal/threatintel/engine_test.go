@@ -104,3 +104,35 @@ func TestEngineDualVerificationRule(t *testing.T) {
 		t.Errorf("esperava VerdictUnknown após validação dupla, obteve: %s", resDual.Verdict)
 	}
 }
+
+func TestEngineAuthenticodeBypass(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "test_auth.db")
+
+	store, err := cache.NewStore(dbPath)
+	if err != nil {
+		t.Fatalf("falha ao criar store: %v", err)
+	}
+	defer store.Close()
+
+	engine := NewEngine(store, "")
+
+	gitPath := "C:\\Program Files\\Git\\cmd\\git.exe"
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	res, err := engine.AnalyzeHash(ctx, "fake_hash_git", "git.exe", gitPath, true)
+	if err != nil {
+		t.Fatalf("falha no AnalyzeHash com Authenticode: %v", err)
+	}
+
+	if res.Verdict != cache.VerdictSafe {
+		t.Errorf("esperava VerdictSafe via Authenticode, obteve: %s", res.Verdict)
+	}
+
+	// Verifica se salvou no store como SAFE e com ambas flags ativas
+	rec, found, _ := store.Get("fake_hash_git")
+	if !found || rec.Verdict != cache.VerdictSafe || !rec.MBChecked || !rec.VTChecked {
+		t.Errorf("registro não persistido corretamente para Authenticode: %+v", rec)
+	}
+}

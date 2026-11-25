@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -15,6 +16,7 @@ import (
 	"secure-go/internal/process"
 	"secure-go/internal/scheduler"
 	"secure-go/internal/threatintel"
+	"secure-go/internal/watcher"
 )
 
 type ProcessViewItem struct {
@@ -181,7 +183,9 @@ func (pt *ProcessTab) Content() fyne.CanvasObject {
 	cardUncat := NewMetricCard("NÃO CATALOGADOS", "Sem assinatura nas bases", pt.lblUncataloged, "❔ INÉDITOS", ColorWarn, ColorWarnBg)
 	cardThreats := NewMetricCard("AMEAÇAS", "Malware ativo detectado", pt.lblThreats, "🚨 AMEAÇAS", ColorDanger, ColorDangerBg)
 
-	searchPanel := NewPanelCard("FILTRO E PESQUISA DE PROCESSOS", pt.btnScanNow, pt.searchEntry)
+	btnAutoruns := widget.NewButtonWithIcon("Autoruns (Inicialização)", IconFARocket, pt.showAutorunsDialog)
+
+	searchPanel := NewPanelCard("FILTRO E PESQUISA DE PROCESSOS", container.NewHBox(pt.btnScanNow, btnAutoruns), pt.searchEntry)
 
 	header := container.NewVBox(
 		pt.statusLabel,
@@ -195,6 +199,74 @@ func (pt *ProcessTab) Content() fyne.CanvasObject {
 	)
 
 	return container.NewBorder(header, nil, nil, nil, pt.listWidget)
+}
+
+func (pt *ProcessTab) showAutorunsDialog() {
+	progressDlg := dialog.NewInformation("Autoruns", "Escaneando registros de inicialização e pastas Startup do Windows...", pt.window)
+	progressDlg.Show()
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		defer cancel()
+
+		entries, err := watcher.ScanAutoruns(ctx, pt.engine)
+		fyne.Do(func() {
+			progressDlg.Hide()
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("falha ao analisar Autoruns: %w", err), pt.window)
+				return
+			}
+
+			list := widget.NewList(
+				func() int {
+					return len(entries)
+				},
+				func() fyne.CanvasObject {
+					title := widget.NewLabelWithStyle("Entry Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+					path := widget.NewLabel("C:\\path\\app.exe")
+					badge := widget.NewLabel("[SEGURO]")
+					badge.TextStyle = fyne.TextStyle{Bold: true}
+					return container.NewBorder(nil, nil, nil, badge, container.NewVBox(title, path))
+				},
+				func(id int, obj fyne.CanvasObject) {
+					e := entries[id]
+					box := obj.(*fyne.Container)
+					badge := box.Objects[1].(*widget.Label)
+					vbox := box.Objects[0].(*fyne.Container)
+					title := vbox.Objects[0].(*widget.Label)
+					path := vbox.Objects[1].(*widget.Label)
+
+					title.SetText(fmt.Sprintf("%s  [%s]", e.Name, e.Location))
+					displayPath := e.FilePath
+					if displayPath == "" {
+						displayPath = e.Command
+					}
+					path.SetText(displayPath)
+
+					switch e.Verdict {
+					case cache.VerdictSafe:
+						badge.SetText("✔ SEGURO")
+					case cache.VerdictMalicious:
+						badge.SetText("🚨 MALICIOSO!")
+					case cache.VerdictSuspicious:
+						badge.SetText("⚠️ SUSPEITO")
+					default:
+						badge.SetText("❔ DESCONHECIDO")
+					}
+				},
+			)
+
+			subContent := container.NewBorder(
+				widget.NewLabel(fmt.Sprintf("Total de programas de inicialização identificados: %d", len(entries))),
+				nil, nil, nil,
+				list,
+			)
+
+			d := dialog.NewCustom("Inicialização Automática (Autoruns Monitor)", "Fechar", subContent, pt.window)
+			d.Resize(fyne.NewSize(700, 420))
+			d.Show()
+		})
+	}()
 }
 
 func (pt *ProcessTab) UpdateStatus(status string) {

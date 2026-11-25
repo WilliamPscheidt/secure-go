@@ -3,10 +3,13 @@ package threatintel
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
 	"secure-go/internal/cache"
+	"secure-go/internal/heuristics"
 )
 
 // Engine coordena o cache local persistente e as fontes de inteligência contra ameaças.
@@ -65,6 +68,49 @@ func (e *Engine) HasVirusTotalKey() bool {
 	return e.vtClient.HasAPIKey()
 }
 
+// WhitelistHash marca um hash manualmente como confiável (SAFE).
+func (e *Engine) WhitelistHash(sha256, fileName, filePath string) error {
+	err := e.store.WhitelistHash(sha256, fileName, filePath)
+	if err == nil {
+		rec, found, _ := e.store.Get(sha256)
+		if found && rec != nil {
+			e.notifyNewVerdict(rec)
+		}
+		if e.telemetry != nil {
+			short := sha256
+			if len(short) > 10 {
+				short = short[:10] + "..."
+			}
+			e.telemetry.Log(LogLevelSafe, "Whitelist", fmt.Sprintf("✔ Hash adicionado à Whitelist: %s (%s)", fileName, short))
+		}
+	}
+	return err
+}
+
+// BlacklistHash marca um hash manualmente como malicioso (MALICIOUS).
+func (e *Engine) BlacklistHash(sha256, fileName, filePath, threatName string) error {
+	err := e.store.BlacklistHash(sha256, fileName, filePath, threatName)
+	if err == nil {
+		rec, found, _ := e.store.Get(sha256)
+		if found && rec != nil {
+			e.notifyNewVerdict(rec)
+		}
+		if e.telemetry != nil {
+			short := sha256
+			if len(short) > 10 {
+				short = short[:10] + "..."
+			}
+			e.telemetry.Log(LogLevelDanger, "Blacklist", fmt.Sprintf("🚨 Hash adicionado à Blacklist: %s (%s)", fileName, short))
+		}
+	}
+	return err
+}
+
+// DeleteHash remove um registro de hash do banco de dados local.
+func (e *Engine) DeleteHash(sha256 string) error {
+	return e.store.DeleteHash(sha256)
+}
+
 // AnalyzeHash processa o hash através das camadas: Cache Local -> MalwareBazaar E VirusTotal.
 // REGRA: Para ser classificado como "Não Catalogado" (UNKNOWN), o hash deve ter passado
 // obrigatoriamente por AMBOS os verificadores (MalwareBazaar e VirusTotal).
@@ -118,6 +164,75 @@ func (e *Engine) AnalyzeHash(ctx context.Context, sha256, fileName, filePath str
 			// Se tiver passado por apenas um (ex: MBChecked=true mas VTChecked=false):
 			// O usuário especificou: "Se tiver passado apenas por um, deve passar pelo outro também."
 			// Portanto não encerramos aqui: prosseguimos para consultar o verificador restante!
+		}
+	}
+
+	// 1.1 Camada Heurística & Certificados Digitais Authenticode (Economiza cota de API)
+	if filePath != "" {
+		if _, statErr := os.Stat(filePath); statErr == nil {
+			// A) Verificação de Assinatura Authenticode nativa
+			sigInfo := heuristics.VerifyAuthenticode(filePath)
+			if sigInfo.IsTrusted {
+				record := &cache.HashRecord{
+					SHA256:       sha256,
+					FileName:     fileName,
+					FilePath:     filePath,
+					Verdict:      cache.VerdictSafe,
+					ThreatName:   "",
+					Positives:    0,
+					TotalEngines: 0,
+					Source:       "Authenticode (Assinatura Válida)",
+					CheckedAt:    time.Now(),
+					MBChecked:    true,
+					VTChecked:    true,
+				}
+				_ = e.store.Save(record)
+				e.notifyNewVerdict(record)
+				if e.telemetry != nil {
+					e.telemetry.Log(LogLevelSafe, "Authenticode", fmt.Sprintf("✔ Assinatura digital válida (Authenticode): %s. Cota de API poupada!", fileName))
+				}
+				return &ScanResult{
+					SHA256:       sha256,
+					Verdict:      cache.VerdictSafe,
+					Source:       "Authenticode (Assinatura Válida)",
+					Details:      "Certificado digital Authenticode válido e confiável pelo Windows. Dispensa consulta externa e poupa cota.",
+				}, nil
+			} else if sigInfo.Status == heuristics.SigStatusCorrupt {
+				// ALERTA GRAVE: Binário adulterado após a assinatura!
+				record := &cache.HashRecord{
+					SHA256:       sha256,
+					FileName:     fileName,
+					FilePath:     filePath,
+					Verdict:      cache.VerdictMalicious,
+					ThreatName:   "Authenticode: Digest Corrompido/Adulterado",
+					Positives:    1,
+					TotalEngines: 1,
+					Source:       "Heurística (Adulteração de Binário)",
+					CheckedAt:    time.Now(),
+					MBChecked:    true,
+					VTChecked:    true,
+				}
+				_ = e.store.Save(record)
+				e.notifyNewVerdict(record)
+				if e.telemetry != nil {
+					e.telemetry.Log(LogLevelDanger, "Heurística", fmt.Sprintf("🚨 ARQUIVO ADULTERADO: Digest corrompido em %s (%s)", fileName, filePath))
+				}
+				return &ScanResult{
+					SHA256:       sha256,
+					Verdict:      cache.VerdictMalicious,
+					ThreatName:   "Adulteração de Binário (Digest Corrupt)",
+					Positives:    1,
+					TotalEngines: 1,
+					Source:       "Heurística Authenticode",
+					Details:      "O arquivo possui assinatura digital inválida/adulterada (modificado após ter sido assinado).",
+				}, nil
+			}
+
+			// B) Análise Heurística de Seções PE & Entropia (Packers)
+			peRes := heuristics.AnalyzePE(filePath)
+			if peRes.IsSuspicious && e.telemetry != nil {
+				e.telemetry.Log(LogLevelWarn, "Heurística/PE", fmt.Sprintf("⚠ Indicador suspeito em %s: %s (Entropia: %.2f)", fileName, strings.Join(peRes.Indicators, "; "), peRes.MaxEntropy))
+			}
 		}
 	}
 

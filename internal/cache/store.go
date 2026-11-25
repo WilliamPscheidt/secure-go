@@ -206,17 +206,30 @@ func (s *Store) IsSafe(sha256 string) bool {
 	return rec.Verdict == VerdictSafe
 }
 
-// ListAll retorna os registros mais recentes salvos no banco.
+// ListAll retorna os registros mais recentes salvos no banco. Se limit <= 0, retorna todos.
 func (s *Store) ListAll(limit, offset int) ([]*HashRecord, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	rows, err := s.db.Query(`
-		SELECT sha256, file_name, file_path, verdict, threat_name, positives, total_engines, source, checked_at, mb_checked, vt_checked
-		FROM hash_cache
-		ORDER BY checked_at DESC
-		LIMIT ? OFFSET ?
-	`, limit, offset)
+	var query string
+	var args []any
+	if limit > 0 {
+		query = `
+			SELECT sha256, file_name, file_path, verdict, threat_name, positives, total_engines, source, checked_at, mb_checked, vt_checked
+			FROM hash_cache
+			ORDER BY checked_at DESC
+			LIMIT ? OFFSET ?
+		`
+		args = []any{limit, offset}
+	} else {
+		query = `
+			SELECT sha256, file_name, file_path, verdict, threat_name, positives, total_engines, source, checked_at, mb_checked, vt_checked
+			FROM hash_cache
+			ORDER BY checked_at DESC
+		`
+	}
+
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -249,6 +262,44 @@ func (s *Store) ListAll(limit, offset int) ([]*HashRecord, error) {
 	}
 
 	return records, rows.Err()
+}
+
+// SetVerdict atualiza ou insere o veredito de um hash com fonte customizada.
+func (s *Store) SetVerdict(sha256, fileName, filePath string, verdict Verdict, threatName, source string) error {
+	rec := &HashRecord{
+		SHA256:       sha256,
+		FileName:     fileName,
+		FilePath:     filePath,
+		Verdict:      verdict,
+		ThreatName:   threatName,
+		Source:       source,
+		CheckedAt:    time.Now(),
+		MBChecked:    true,
+		VTChecked:    true,
+	}
+	return s.Save(rec)
+}
+
+// WhitelistHash adiciona o hash à lista de permissões seguras (Whitelist).
+func (s *Store) WhitelistHash(sha256, fileName, filePath string) error {
+	return s.SetVerdict(sha256, fileName, filePath, VerdictSafe, "", "Whitelist Manual (Usuário)")
+}
+
+// BlacklistHash adiciona o hash à lista de bloqueio de ameaças (Blacklist).
+func (s *Store) BlacklistHash(sha256, fileName, filePath, threatName string) error {
+	if threatName == "" {
+		threatName = "Bloqueio Manual pelo Usuário"
+	}
+	return s.SetVerdict(sha256, fileName, filePath, VerdictMalicious, threatName, "Blacklist Manual (Usuário)")
+}
+
+// DeleteHash remove o registro do banco de dados local.
+func (s *Store) DeleteHash(sha256 string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, err := s.db.Exec(`DELETE FROM hash_cache WHERE sha256 = ?`, sha256)
+	return err
 }
 
 // Stats retorna contadores consolidados do banco local de hashes.
