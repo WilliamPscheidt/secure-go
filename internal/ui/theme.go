@@ -7,27 +7,33 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
-// Cores corporativas elegantes de Cibersegurança (Dark Slate Charcoal & Cyber Blue)
+// Cores refinadas inspiradas no Malwarebytes Premium & Purrweb Antivirus Design
 var (
-	// Fundos em tons de cinza-escuro elegante e ardósia
-	ColorSlateBg    = color.NRGBA{R: 15, G: 23, B: 42, A: 255}  // #0f172a - Cinza-escuro ardósia profundo
-	ColorCardBg     = color.NRGBA{R: 24, G: 35, B: 54, A: 255}  // #182336 - Superfície dos Cards (Cinza-escuro elevado)
-	ColorCardBorder = color.NRGBA{R: 44, G: 62, B: 92, A: 255}  // #2c3e5c - Borda moderna sutil
-	ColorInputBg    = color.NRGBA{R: 13, G: 19, B: 33, A: 255}  // #0d1321 - Fundo escuro de inputs
+	// Fundos em tons de ardósia obsidiana profunda e charcoals elegantes
+	ColorSlateBg    = color.NRGBA{R: 12, G: 16, B: 23, A: 255}  // #0c1017 - Fundo principal da aplicação
+	ColorSidebarBg  = color.NRGBA{R: 8, G: 11, B: 16, A: 255}   // #080b10 - Sidebar lateral mais escura
+	ColorCardBg     = color.NRGBA{R: 20, G: 26, B: 37, A: 255}  // #141a25 - Superfície elevada dos cards
+	ColorCardHover  = color.NRGBA{R: 27, G: 35, B: 50, A: 255}  // #1b2332 - Hover sutil em cards
+	ColorCardBorder = color.NRGBA{R: 35, G: 46, B: 64, A: 255}  // #232e40 - Contorno sutil e moderno de 1px
+	ColorInputBg    = color.NRGBA{R: 14, G: 19, B: 28, A: 255}  // #0e131c - Fundo de campos de texto
 
-	// Paleta de Acentos em Azul Moderno / Cyber Blue
-	ColorBluePrimary = color.NRGBA{R: 59, G: 130, B: 246, A: 255} // #3b82f6 - Azul Tech Moderno
-	ColorBlueHover   = color.NRGBA{R: 37, G: 99, B: 235, A: 255}  // #2563eb - Azul Escuro Hover
-	ColorBlueVibrant = color.NRGBA{R: 96, G: 165, B: 250, A: 255} // #60a5fa - Azul Claro para Destaques
-	ColorBlueAlpha   = color.NRGBA{R: 59, G: 130, B: 246, A: 35}  // #3b82f623 - Brilho translúcido azul
-	ColorCyan        = color.NRGBA{R: 56, G: 189, B: 248, A: 255} // #38bdf8 - Azul Ciano / Sky
-	ColorCyanAlpha   = color.NRGBA{R: 56, G: 189, B: 248, A: 35}  // #38bdf823 - Ciano translúcido
+	// Paleta de Acentos: Cyber Blue & Emerald Green (Score de Proteção)
+	ColorBluePrimary = color.NRGBA{R: 37, G: 99, B: 235, A: 255}  // #2563eb - Azul Tech Purrweb / Malwarebytes
+	ColorBlueHover   = color.NRGBA{R: 29, G: 78, B: 216, A: 255}  // #1d4ed8 - Azul escuro hover
+	ColorBlueVibrant = color.NRGBA{R: 59, G: 130, B: 246, A: 255} // #3b82f6 - Azul claro vivo para títulos
+	ColorBlueAlpha   = color.NRGBA{R: 59, G: 130, B: 246, A: 35}  // Brilho translúcido azul
 
-	// Aliases para compatibilidade visual com o novo esquema azul
-	ColorEmerald      = ColorCyan
+	// Verde Esmeralda / Neon do Score 100% de Proteção (Malwarebytes Trusted Advisor)
+	ColorScoreGreen   = color.NRGBA{R: 16, G: 185, B: 129, A: 255} // #10b981 - Verde proteção excelente
+	ColorScoreGreenBg = color.NRGBA{R: 16, G: 185, B: 129, A: 30}  // Fundo translúcido
+	ColorCyan         = color.NRGBA{R: 6, G: 182, B: 212, A: 255}  // #06b6d4 - Ciano moderno
+	ColorCyanAlpha    = color.NRGBA{R: 6, G: 182, B: 212, A: 35}
+
+	// Aliases para compatibilidade visual
+	ColorEmerald      = ColorScoreGreen
 	ColorEmeraldHover = ColorBlueHover
-	ColorEmeraldSoft  = ColorBlueVibrant
-	ColorEmeraldAlpha = ColorCyanAlpha
+	ColorEmeraldSoft  = ColorScoreGreen
+	ColorEmeraldAlpha = ColorScoreGreenBg
 
 	// Tipografia de alto contraste e legibilidade
 	ColorTextPrimary   = color.NRGBA{R: 248, G: 250, B: 252, A: 255} // #f8fafc - Branco Platinum

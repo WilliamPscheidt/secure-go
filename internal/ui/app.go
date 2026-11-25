@@ -5,6 +5,7 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
 
 	"secure-go/internal/cache"
 	"secure-go/internal/notifier"
@@ -47,15 +48,90 @@ func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notif
 		dashboardTab.updateMetrics()
 	})
 
-	tabs := container.NewAppTabs(
-		container.NewTabItemWithIcon("Painel Central (Dashboard)", IconFADashboard, dashboardTab.Content()),
-		container.NewTabItemWithIcon("Processos Ativos", IconFAProcesses, processTab.Content()),
-		container.NewTabItemWithIcon("Mapa de Rede", IconFANetwork, networkTab.Content()),
-		container.NewTabItemWithIcon("Scanner de Disco", IconFADisk, diskTab.Content()),
-		container.NewTabItemWithIcon("Banco de Hashes", IconFADatabase, databaseTab.Content()),
-		container.NewTabItemWithIcon("Configurações", IconFAGear, settingsTab.Content()),
+	// Estrutura de Navegação em Sidebar Lateral (Estilo Malwarebytes & Purrweb)
+	type navItem struct {
+		title   string
+		icon    fyne.Resource
+		content fyne.CanvasObject
+		btn     *widget.Button
+	}
+
+	items := []*navItem{
+		{"Dashboard", IconFADashboard, dashboardTab.Content(), nil},
+		{"Processos Ativos", IconFAProcesses, processTab.Content(), nil},
+		{"Mapa de Rede", IconFANetwork, networkTab.Content(), nil},
+		{"Scanner de Disco", IconFADisk, diskTab.Content(), nil},
+		{"Banco de Hashes", IconFADatabase, databaseTab.Content(), nil},
+		{"Configurações", IconFAGear, settingsTab.Content(), nil},
+	}
+
+	contentArea := container.NewStack(items[0].content)
+
+	selectTab := func(idx int) {
+		for i, it := range items {
+			if i == idx {
+				it.btn.Importance = widget.HighImportance
+			} else {
+				it.btn.Importance = widget.LowImportance
+			}
+			it.btn.Refresh()
+		}
+		contentArea.Objects = []fyne.CanvasObject{items[idx].content}
+		contentArea.Refresh()
+	}
+
+	var navButtons []fyne.CanvasObject
+	for i := range items {
+		idx := i
+		btn := widget.NewButtonWithIcon(items[i].title, items[i].icon, func() {
+			selectTab(idx)
+		})
+		btn.Alignment = widget.ButtonAlignLeading
+		if i == 0 {
+			btn.Importance = widget.HighImportance
+		} else {
+			btn.Importance = widget.LowImportance
+		}
+		items[i].btn = btn
+		navButtons = append(navButtons, btn)
+	}
+
+	sidebarNavList := container.NewVBox(navButtons...)
+
+	sidebarBg := canvas.NewRectangle(ColorSidebarBg)
+	sidebarBg.SetMinSize(fyne.NewSize(195, 0))
+
+	sidebarHeader := container.NewVBox(
+		NewSectionHeader("MENU PRINCIPAL"),
 	)
-	tabs.SetTabLocation(container.TabLocationTop)
+
+	statusPill := NewPillBadge("● PROTEÇÃO ATIVA", ColorScoreGreen, ColorScoreGreenBg)
+
+	versionLbl := canvas.NewText("SecureGo Enterprise v2.5", ColorTextMuted)
+	versionLbl.TextSize = 10
+
+	engineLbl := canvas.NewText("Heurística + SQLite WAL", ColorTextMuted)
+	engineLbl.TextSize = 9
+
+	sidebarFooter := container.NewVBox(
+		canvas.NewLine(ColorCardBorder),
+		container.NewCenter(statusPill),
+		container.NewCenter(versionLbl),
+		container.NewCenter(engineLbl),
+	)
+
+	sidebarContent := container.NewBorder(sidebarHeader, sidebarFooter, nil, nil, sidebarNavList)
+	sidebar := container.NewStack(sidebarBg, container.NewPadded(sidebarContent))
+
+	// Separador vertical sutil entre a barra lateral e a área principal
+	vDivider := canvas.NewLine(ColorCardBorder)
+
+	mainLayout := container.NewBorder(
+		nil, nil,
+		container.NewHBox(sidebar, vDivider),
+		nil,
+		container.NewPadded(contentArea),
+	)
 
 	// Barra superior estilizada com branding e indicador de proteção
 	brandTitle := canvas.NewText("SECURE-GO", ColorBlueVibrant)
@@ -68,19 +144,19 @@ func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notif
 	brandSub := canvas.NewText("CYBER DEFENDER & THREAT MONITOR", ColorTextSecondary)
 	brandSub.TextSize = 11
 
-	statusPill := NewPillBadge("● TEMPO REAL ATIVO (WATCHER + HEURÍSTICA)", ColorCyan, ColorCyanAlpha)
+	topBannerStatusPill := NewPillBadge("● TEMPO REAL ATIVO (WATCHER + HEURÍSTICA)", ColorCyan, ColorCyanAlpha)
 
 	headerBanner := container.NewVBox(
 		container.NewPadded(
 			container.NewBorder(nil, nil,
 				container.NewHBox(shieldImg, brandTitle, canvas.NewText("|", ColorCardBorder), brandSub),
-				statusPill,
+				topBannerStatusPill,
 			),
 		),
 		canvas.NewLine(ColorCardBorder),
 	)
 
-	w.SetContent(container.NewBorder(headerBanner, nil, nil, nil, tabs))
+	w.SetContent(container.NewBorder(headerBanner, nil, nil, nil, mainLayout))
 
 	w.SetOnClosed(func() {
 		fileWatcher.Stop()

@@ -309,24 +309,57 @@ func (dt *DashboardTab) updateMetrics() {
 }
 
 func (dt *DashboardTab) Content() fyne.CanvasObject {
-	// 1. Hero Card de Proteção Ativa com Barra de Progresso da Varredura
-	heroTop := container.NewBorder(nil, nil,
-		container.NewVBox(dt.heroTitle, dt.heroSub),
+	// 1. Coluna Esquerda: SECURITY (Cards modulares estilo Malwarebytes & Purrweb)
+	cardScanner := NewSecurityRowCard(
+		IconFAShield,
+		"Scanner do Sistema",
+		"Varredura periódica a cada 30 min | Cache SQLite",
 		dt.btnScanNow,
+		container.NewVBox(dt.barScanProgress, dt.lblScanDetail),
 	)
 
-	scanProgressBox := container.NewVBox(
-		dt.barScanProgress,
-		dt.lblScanDetail,
+	cardHistory := NewSecurityRowCard(
+		IconFADatabase,
+		"Histórico de Detecções & Hashes",
+		"Processos em execução e dupla checagem em cache",
+		NewPillBadge("BANCO SQLite", ColorBluePrimary, ColorBlueAlpha),
+		nil,
 	)
 
-	heroBody := container.NewVBox(
-		heroTop,
-		scanProgressBox,
+	cardRealTime := NewSecurityRowCard(
+		IconFAEye,
+		"Proteção Contínua (File Watcher)",
+		"Vigiando Downloads, Temp e Inicialização",
+		NewPillBadge("● ATIVA", ColorScoreGreen, ColorScoreGreenBg),
+		nil,
 	)
-	heroCard := NewPanelCard("CENTRAL DE MONITORAMENTO DO SISTEMA", NewPillBadge("TEMPO REAL", ColorBluePrimary, ColorBlueAlpha), heroBody)
 
-	// 2. Métricas Principais (Cards com badges modernos e cores suaves)
+	cardNetwork := NewSecurityRowCard(
+		IconFANetwork,
+		"Threat Network & Conexões Ativas",
+		"Mapeamento de sockets TCP e anti-C2/LOLBin ativo",
+		NewPillBadge("SUPERVISIONADO", ColorCyan, ColorCyanAlpha),
+		nil,
+	)
+
+	securityCol := container.NewVBox(
+		NewSectionHeader("SECURITY (SEGURANÇA DO SISTEMA)"),
+		cardScanner,
+		cardHistory,
+		cardRealTime,
+		cardNetwork,
+	)
+
+	// 2. Coluna Direita: TRUSTED ADVISOR (Score de Proteção 100% com Arco Visual)
+	scoreCard := NewProtectionScoreGauge(100, "Excelente")
+	advisorCol := container.NewVBox(
+		NewSectionHeader("TRUSTED ADVISOR (SAÚDE DO SISTEMA)"),
+		scoreCard,
+	)
+
+	topHeroGrid := container.NewGridWithColumns(2, securityCol, advisorCol)
+
+	// 3. Métricas Principais (Cards com badges modernos e cores suaves)
 	cardTotal := NewMetricCard("PROCESSOS DO SISTEMA", "Instâncias em execução", dt.lblTotal, "ATIVOS", ColorBluePrimary, ColorBlueAlpha)
 	cardSafe := NewMetricCard("HASHES SEGUROS", "Confirmados limpos em cache", dt.lblSafe, "✔ SEGUROS", ColorCyan, ColorCyanAlpha)
 	cardUncat := NewMetricCard("NÃO CATALOGADOS", "Sem assinatura nas bases", dt.lblUncataloged, "❔ INÉDITOS", ColorWarn, ColorWarnBg)
@@ -334,7 +367,7 @@ func (dt *DashboardTab) Content() fyne.CanvasObject {
 
 	metricsGrid := container.NewGridWithColumns(4, cardTotal, cardSafe, cardUncat, cardThreats)
 
-	// 3. Cartões de Telemetria com Fundo Elevado e Barras Reais
+	// 4. Cartões de Telemetria com Fundo Elevado e Barras Reais
 	mbBody := container.NewVBox(
 		dt.lblMBStatus,
 		dt.lblMBFile,
@@ -352,7 +385,7 @@ func (dt *DashboardTab) Content() fyne.CanvasObject {
 
 	telemetryGrid := container.NewGridWithColumns(2, cardMB, cardVT)
 
-	// 4. Ações Rápidas do Terminal com Ícones FontAwesome
+	// 5. Ações Rápidas do Terminal com Ícones FontAwesome
 	btnTestAlert := widget.NewButtonWithIcon("Testar Alerta", IconFABell, func() {
 		_ = dt.notifier.SendMalwareAlert("processo_teste.exe", 1234, "Teste.Dashboard.Alerta", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 		dt.engine.Telemetry().Log(threatintel.LogLevelWarn, "Alerta", "Alerta sonoro e visual disparado na Área de Trabalho.")
@@ -373,12 +406,12 @@ func (dt *DashboardTab) Content() fyne.CanvasObject {
 		actionsBox,
 	)
 
-	topContainer := container.NewVBox(
-		heroCard,
+	dashboardScrollContent := container.NewVBox(
+		topHeroGrid,
 		metricsGrid,
 		telemetryGrid,
 		headerTerminal,
 	)
 
-	return container.NewBorder(topContainer, nil, nil, nil, dt.logList)
+	return container.NewBorder(dashboardScrollContent, nil, nil, nil, dt.logList)
 }
