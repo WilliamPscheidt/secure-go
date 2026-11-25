@@ -144,8 +144,6 @@ func (dt *DatabaseTab) Refresh() {
 
 func (dt *DatabaseTab) filterItems(query string) {
 	dt.mu.Lock()
-	defer dt.mu.Unlock()
-
 	q := strings.ToLower(strings.TrimSpace(query))
 	if q == "" {
 		dt.filtered = dt.records
@@ -161,6 +159,7 @@ func (dt *DatabaseTab) filterItems(query string) {
 		}
 		dt.filtered = filtered
 	}
+	dt.mu.Unlock()
 
 	if dt.listWidget != nil {
 		dt.listWidget.Refresh()

@@ -238,8 +238,6 @@ func (pt *ProcessTab) refreshProcesses() {
 
 func (pt *ProcessTab) filterItems(query string) {
 	pt.mu.Lock()
-	defer pt.mu.Unlock()
-
 	q := strings.ToLower(strings.TrimSpace(query))
 	if q == "" {
 		pt.filtered = pt.allItems
@@ -255,6 +253,7 @@ func (pt *ProcessTab) filterItems(query string) {
 		}
 		pt.filtered = filtered
 	}
+	pt.mu.Unlock()
 
 	if pt.listWidget != nil {
 		pt.listWidget.Refresh()
