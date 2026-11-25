@@ -43,6 +43,9 @@ func (e *Engine) Telemetry() *TelemetryHub {
 // SetVirusTotalKey atualiza a chave da API do VirusTotal em tempo de execução.
 func (e *Engine) SetVirusTotalKey(key string) {
 	e.vtClient.SetAPIKey(key)
+	if e.telemetry != nil {
+		e.telemetry.TriggerStateUpdate()
+	}
 }
 
 // SetOnNewVerdictCallback define um listener para quando um novo hash for avaliado e salvo.

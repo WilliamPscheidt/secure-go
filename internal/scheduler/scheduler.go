@@ -27,6 +27,12 @@ type ScanReport struct {
 	ThreatsList     []process.ProcessInfo `json:"threats_list,omitempty"`
 }
 
+// Callback types para notificações em tempo real
+type ProgressCallback func(current, total int, currentItem string)
+type StatusCallback func(status string)
+type ReportCallback func(report *ScanReport)
+type ThreatCallback func(p process.ProcessInfo, threatName string)
+
 // Scheduler coordena a execução contínua da análise a cada 30 minutos (ou intervalo customizado).
 type Scheduler struct {
 	engine     *threatintel.Engine
@@ -42,10 +48,11 @@ type Scheduler struct {
 	lastReport   *ScanReport
 	nextScanTime time.Time
 
-	// Callbacks para atualizar a interface gráfica
-	onStatusChange  func(status string)
-	onReportReady   func(report *ScanReport)
-	onThreatFound   func(p process.ProcessInfo, threatName string)
+	// Listeners para atualizar a interface gráfica
+	statusListeners   []StatusCallback
+	progressListeners []ProgressCallback
+	reportListeners   []ReportCallback
+	threatListeners   []ThreatCallback
 }
 
 // NewScheduler inicializa o agendador com intervalo configurável (padrão: 30 minutos).
@@ -62,7 +69,35 @@ func NewScheduler(engine *threatintel.Engine, notif *notifier.Notifier, interval
 	}
 }
 
-// SetCallbacks registra funções que serão notificadas para atualização da GUI.
+// AddProgressListener registra callback para acompanhar progresso de cada processo escaneado.
+func (s *Scheduler) AddProgressListener(cb ProgressCallback) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.progressListeners = append(s.progressListeners, cb)
+}
+
+// AddStatusListener registra callback para mensagens de status geral.
+func (s *Scheduler) AddStatusListener(cb StatusCallback) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.statusListeners = append(s.statusListeners, cb)
+}
+
+// AddReportListener registra callback para relatório final pronto.
+func (s *Scheduler) AddReportListener(cb ReportCallback) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.reportListeners = append(s.reportListeners, cb)
+}
+
+// AddThreatListener registra callback para ameaças encontradas.
+func (s *Scheduler) AddThreatListener(cb ThreatCallback) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.threatListeners = append(s.threatListeners, cb)
+}
+
+// SetCallbacks registra funções para compatibilidade com implementações anteriores.
 func (s *Scheduler) SetCallbacks(
 	onStatusChange func(status string),
 	onReportReady func(report *ScanReport),
@@ -70,9 +105,15 @@ func (s *Scheduler) SetCallbacks(
 ) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.onStatusChange = onStatusChange
-	s.onReportReady = onReportReady
-	s.onThreatFound = onThreatFound
+	if onStatusChange != nil {
+		s.statusListeners = append(s.statusListeners, onStatusChange)
+	}
+	if onReportReady != nil {
+		s.reportListeners = append(s.reportListeners, onReportReady)
+	}
+	if onThreatFound != nil {
+		s.threatListeners = append(s.threatListeners, onThreatFound)
+	}
 }
 
 // SetInterval atualiza o intervalo da varredura periódica.
@@ -201,15 +242,18 @@ func (s *Scheduler) RunCycle(ctx context.Context) *ScanReport {
 		return report
 	}
 
-	report.TotalProcesses = len(procs)
+	totalProcs := len(procs)
+	report.TotalProcesses = totalProcs
 	if s.engine.Telemetry() != nil {
-		s.engine.Telemetry().Log(threatintel.LogLevelInfo, "Scheduler", fmt.Sprintf("Iniciando varredura periódica de %d processos...", len(procs)))
+		s.engine.Telemetry().Log(threatintel.LogLevelInfo, "Scheduler", fmt.Sprintf("Iniciando varredura de %d processos ativos...", totalProcs))
 	}
 
 	// Mapa para evitar duplicar verificações de processos com mesmo hash neste ciclo
 	seenHashes := make(map[string]bool)
 
-	for _, p := range procs {
+	for i, p := range procs {
+		s.notifyProgress(i+1, totalProcs, p.Name)
+
 		if p.SHA256 == "" {
 			if p.Error != "" {
 				report.ErrorsCount++
@@ -222,22 +266,29 @@ func (s *Scheduler) RunCycle(ctx context.Context) *ScanReport {
 		}
 		seenHashes[p.SHA256] = true
 
-		// 1. Checagem direta no banco local
+		// 1. Checagem direta no banco local (Fast-Path Cache)
 		rec, exists, _ := s.engine.Store().Get(p.SHA256)
 		if exists && rec != nil {
-			if rec.Verdict == cache.VerdictSafe {
+			switch rec.Verdict {
+			case cache.VerdictSafe:
 				report.CachedSafe++
 				continue
-			} else if rec.Verdict == cache.VerdictMalicious {
+			case cache.VerdictMalicious:
 				report.ThreatsDetected++
 				report.ThreatsList = append(report.ThreatsList, p)
 				s.notifyThreat(p, rec.ThreatName)
 				_ = s.notifier.SendMalwareAlert(p.Name, p.PID, rec.ThreatName, p.SHA256)
 				continue
+			case cache.VerdictSuspicious:
+				report.SuspiciousCount++
+				continue
+			case cache.VerdictUnknown:
+				report.Uncataloged++
+				continue
 			}
 		}
 
-		// 2. Hash novo/não catalogado: consulta o Engine
+		// 2. Hash novo/nunca visto: consulta o Engine
 		report.NewlyChecked++
 		res, err := s.engine.AnalyzeHash(ctx, p.SHA256, p.Name, p.ExePath, false)
 		if err != nil {
@@ -273,30 +324,54 @@ func (s *Scheduler) RunCycle(ctx context.Context) *ScanReport {
 		s.engine.Telemetry().Log(threatintel.LogLevelSafe, "Scheduler", summary)
 	}
 
-	s.mu.RLock()
-	cbReport := s.onReportReady
-	s.mu.RUnlock()
-	if cbReport != nil {
-		go cbReport(report)
-	}
-
+	s.notifyReport(report)
 	return report
 }
 
 func (s *Scheduler) notifyStatus(msg string) {
 	s.mu.RLock()
-	cb := s.onStatusChange
+	listeners := make([]StatusCallback, len(s.statusListeners))
+	copy(listeners, s.statusListeners)
 	s.mu.RUnlock()
-	if cb != nil {
-		go cb(msg)
+	for _, cb := range listeners {
+		if cb != nil {
+			go cb(msg)
+		}
+	}
+}
+
+func (s *Scheduler) notifyProgress(current, total int, item string) {
+	s.mu.RLock()
+	listeners := make([]ProgressCallback, len(s.progressListeners))
+	copy(listeners, s.progressListeners)
+	s.mu.RUnlock()
+	for _, cb := range listeners {
+		if cb != nil {
+			go cb(current, total, item)
+		}
+	}
+}
+
+func (s *Scheduler) notifyReport(report *ScanReport) {
+	s.mu.RLock()
+	listeners := make([]ReportCallback, len(s.reportListeners))
+	copy(listeners, s.reportListeners)
+	s.mu.RUnlock()
+	for _, cb := range listeners {
+		if cb != nil {
+			go cb(report)
+		}
 	}
 }
 
 func (s *Scheduler) notifyThreat(p process.ProcessInfo, threatName string) {
 	s.mu.RLock()
-	cb := s.onThreatFound
+	listeners := make([]ThreatCallback, len(s.threatListeners))
+	copy(listeners, s.threatListeners)
 	s.mu.RUnlock()
-	if cb != nil {
-		go cb(p, threatName)
+	for _, cb := range listeners {
+		if cb != nil {
+			go cb(p, threatName)
+		}
 	}
 }

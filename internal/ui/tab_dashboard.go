@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -25,6 +26,13 @@ type DashboardTab struct {
 	scheduler *scheduler.Scheduler
 	notifier  *notifier.Notifier
 
+	// Hero Card e Progresso Geral da Varredura
+	heroTitle       *canvas.Text
+	heroSub         *canvas.Text
+	btnScanNow      *widget.Button
+	barScanProgress *widget.ProgressBar
+	lblScanDetail   *widget.Label
+
 	// Métricas principais
 	lblTotal       *widget.Label
 	lblSafe        *widget.Label
@@ -34,7 +42,7 @@ type DashboardTab struct {
 	// Telemetria MalwareBazaar
 	lblMBStatus   *widget.Label
 	lblMBFile     *widget.Label
-	barMBActivity *widget.ProgressBarInfinite
+	barMBActivity *widget.ProgressBar
 
 	// Telemetria VirusTotal
 	lblVTStatus   *widget.Label
@@ -58,30 +66,63 @@ func NewDashboardTab(win fyne.Window, engine *threatintel.Engine, sched *schedul
 
 	dt.initUI()
 	dt.connectTelemetry()
+	dt.connectScheduler()
 	return dt
 }
 
 func (dt *DashboardTab) initUI() {
+	// 0. Hero Card e Barra Geral de Progresso
+	dt.heroTitle = canvas.NewText("STATUS DO SISTEMA: 100% PROTEGIDO", ColorEmerald)
+	dt.heroTitle.TextStyle = fyne.TextStyle{Bold: true}
+	dt.heroTitle.TextSize = 14
+
+	dt.heroSub = canvas.NewText("Monitoramento em tempo real a cada 30 min | Cache inteligente SQLite | Telemetria de APIs ativa", ColorTextSecondary)
+	dt.heroSub.TextSize = 11
+
+	dt.btnScanNow = widget.NewButtonWithIcon("Escanear Processos Agora", theme.MediaPlayIcon(), func() {
+		dt.btnScanNow.Disable()
+		dt.btnScanNow.SetText("Iniciando...")
+		dt.barScanProgress.SetValue(0.0)
+		dt.lblScanDetail.SetText("Iniciando varredura e mapeamento de processos...")
+		dt.engine.Telemetry().Log(threatintel.LogLevelInfo, "Manual", "Disparando ciclo de análise de processos sob demanda...")
+		go func() {
+			dt.scheduler.TriggerNow()
+		}()
+	})
+	dt.btnScanNow.Importance = widget.HighImportance
+
+	dt.barScanProgress = widget.NewProgressBar()
+	dt.barScanProgress.SetValue(0.0)
+
+	dt.lblScanDetail = widget.NewLabel("● Sistema monitorado em tempo real | Aguardando próximo ciclo de varredura")
+	dt.lblScanDetail.TextStyle = fyne.TextStyle{Italic: true}
+
 	// 1. Métricas principais do sistema
 	dt.lblTotal = widget.NewLabelWithStyle("0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 	dt.lblSafe = widget.NewLabelWithStyle("0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 	dt.lblUncataloged = widget.NewLabelWithStyle("0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 	dt.lblThreats = widget.NewLabelWithStyle("0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 
-	// 2. Telemetria MalwareBazaar
-	dt.lblMBStatus = widget.NewLabelWithStyle("● PRONTO / AGUARDANDO", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	dt.lblMBFile = widget.NewLabel("Nenhuma consulta em andamento")
+	// 2. Telemetria MalwareBazaar (Barra de progresso real)
+	dt.lblMBStatus = widget.NewLabelWithStyle("● CONECTADO / AGUARDANDO", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	dt.lblMBFile = widget.NewLabel("Nenhuma consulta em andamento | Base Abuse.ch pronta")
 	dt.lblMBFile.TextStyle = fyne.TextStyle{Italic: true}
-	dt.barMBActivity = widget.NewProgressBarInfinite()
-	dt.barMBActivity.Stop()
+	dt.barMBActivity = widget.NewProgressBar()
+	dt.barMBActivity.SetValue(0.0)
 
 	// 3. Telemetria VirusTotal & Cronômetro
-	dt.lblVTStatus = widget.NewLabelWithStyle("● TAXA SEGURA: 4 REQ/MINUTO", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	dt.lblVTFile = widget.NewLabel("Aguardando próximo arquivo...")
+	if dt.engine.HasVirusTotalKey() {
+		dt.lblVTStatus = widget.NewLabelWithStyle("● TAXA SEGURA: 4 REQ/MINUTO ATIVA", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+		dt.lblVTFile = widget.NewLabel("Aguardando próximo arquivo na fila...")
+		dt.lblVTTimer = widget.NewLabelWithStyle("Pronto para envio imediato", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	} else {
+		dt.lblVTStatus = widget.NewLabelWithStyle("○ VIRUSTOTAL DESATIVADO (SEM CHAVE)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+		dt.lblVTFile = widget.NewLabel("Configure uma chave em 'Configurações' para ativar análise com 70+ antivírus")
+		dt.lblVTTimer = widget.NewLabelWithStyle("Sem envio pendente", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	}
 	dt.lblVTFile.TextStyle = fyne.TextStyle{Italic: true}
 	dt.barVTProgress = widget.NewProgressBar()
-	dt.barVTProgress.SetValue(1.0)
-	dt.lblVTTimer = widget.NewLabelWithStyle("Pronto para envio imediato", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	dt.barVTProgress.SetValue(0.0)
 
 	// 4. Terminal de Logs ao Vivo
 	dt.logList = widget.NewList(
@@ -125,6 +166,37 @@ func (dt *DashboardTab) initUI() {
 	}
 }
 
+func (dt *DashboardTab) connectScheduler() {
+	dt.scheduler.AddProgressListener(func(current, total int, currentItem string) {
+		pct := float64(current) / float64(total)
+		fyne.Do(func() {
+			dt.barScanProgress.SetValue(pct)
+			dt.lblScanDetail.SetText(fmt.Sprintf("Analisando processo %d de %d (%d%%): %s", current, total, int(pct*100), currentItem))
+			dt.btnScanNow.Disable()
+			dt.btnScanNow.SetText("Varrendo...")
+		})
+	})
+
+	dt.scheduler.AddReportListener(func(report *scheduler.ScanReport) {
+		fyne.Do(func() {
+			dt.barScanProgress.SetValue(1.0)
+			dt.btnScanNow.Enable()
+			dt.btnScanNow.SetText("Escanear Processos Agora")
+			dt.lblScanDetail.SetText(fmt.Sprintf("✔ Varredura concluída: %d processos analisados em %v", report.TotalProcesses, report.Duration.Round(10*time.Millisecond)))
+			dt.updateMetrics()
+
+			if report.ThreatsDetected > 0 {
+				dt.heroTitle.Text = fmt.Sprintf("ALERTA CRÍTICO: %d AMEAÇA(S) DETECTADA(S)!", report.ThreatsDetected)
+				dt.heroTitle.Color = ColorDanger
+			} else {
+				dt.heroTitle.Text = "STATUS DO SISTEMA: 100% PROTEGIDO"
+				dt.heroTitle.Color = ColorEmerald
+			}
+			dt.heroTitle.Refresh()
+		})
+	})
+}
+
 func (dt *DashboardTab) connectTelemetry() {
 	dt.engine.Telemetry().SetListeners(
 		// Atualização de estado das APIs e cronômetro
@@ -136,15 +208,21 @@ func (dt *DashboardTab) connectTelemetry() {
 					if st.MBCurrentFile != "" {
 						dt.lblMBFile.SetText(fmt.Sprintf("Verificando: %s (hash: %.14s...)", st.MBCurrentFile, st.MBCurrentHash))
 					}
-					dt.barMBActivity.Start()
+					dt.barMBActivity.SetValue(1.0)
 				} else {
 					dt.lblMBStatus.SetText("● CONECTADO / AGUARDANDO")
-					dt.lblMBFile.SetText(fmt.Sprintf("Total de consultas realizadas hoje: %d", st.MBQueries))
-					dt.barMBActivity.Stop()
+					dt.lblMBFile.SetText(fmt.Sprintf("Total de consultas realizadas hoje: %d  |  Pronto", st.MBQueries))
+					dt.barMBActivity.SetValue(0.0)
 				}
 
 				// Atualiza VirusTotal & Contagem Regressiva
-				if st.VTSecondsLeft > 0 {
+				hasKey := dt.engine.HasVirusTotalKey()
+				if !hasKey {
+					dt.lblVTStatus.SetText("○ VIRUSTOTAL DESATIVADO (SEM CHAVE)")
+					dt.lblVTFile.SetText("Insira uma chave API v3 em 'Configurações' para ativar")
+					dt.barVTProgress.SetValue(0.0)
+					dt.lblVTTimer.SetText("Sem chave de API configurada")
+				} else if st.VTSecondsLeft > 0 {
 					// Em espera de Rate Limit
 					dt.lblVTStatus.SetText(fmt.Sprintf("⏳ AGUARDANDO JANELA DE SEGURANÇA (%d seg)", st.VTSecondsLeft))
 					if st.VTCurrentFile != "" {
@@ -154,8 +232,8 @@ func (dt *DashboardTab) connectTelemetry() {
 					if total <= 0 {
 						total = 15.0
 					}
-					// Progresso inverso (tempo restante)
-					progress := 1.0 - (float64(st.VTSecondsLeft) / total)
+					// Progresso da contagem regressiva (preenche conforme o tempo passa)
+					progress := (total - float64(st.VTSecondsLeft)) / total
 					dt.barVTProgress.SetValue(progress)
 					dt.lblVTTimer.SetText(fmt.Sprintf("Próximo envio em: 00:%02ds  |  Fila: %d arquivo(s)", st.VTSecondsLeft, st.VTQueueLen))
 				} else if st.VTActive {
@@ -167,7 +245,7 @@ func (dt *DashboardTab) connectTelemetry() {
 				} else {
 					dt.lblVTStatus.SetText("● PRONTO (RATE LIMIT 4 REQ/MINUTO ATIVO)")
 					dt.lblVTFile.SetText(fmt.Sprintf("Total de análises no VirusTotal: %d", st.VTQueries))
-					dt.barVTProgress.SetValue(1.0)
+					dt.barVTProgress.SetValue(0.0)
 					dt.lblVTTimer.SetText("Pronto para envio imediato")
 				}
 			})
@@ -176,7 +254,7 @@ func (dt *DashboardTab) connectTelemetry() {
 		func(item threatintel.LogItem) {
 			dt.mu.Lock()
 			dt.logEntries = append(dt.logEntries, item)
-			if len(dt.logEntries) > 100 {
+			if len(dt.logEntries) > 120 {
 				dt.logEntries = dt.logEntries[1:]
 			}
 			dt.mu.Unlock()
@@ -228,26 +306,22 @@ func (dt *DashboardTab) updateMetrics() {
 }
 
 func (dt *DashboardTab) Content() fyne.CanvasObject {
-	// 1. Hero Card de Proteção Ativa
-	btnScanNow := widget.NewButtonWithIcon("Escanear Processos Agora", theme.MediaPlayIcon(), func() {
-		dt.engine.Telemetry().Log(threatintel.LogLevelInfo, "Manual", "Disparando ciclo de análise sob demanda...")
-		go dt.scheduler.TriggerNow()
-		go dt.updateMetrics()
-	})
-	btnScanNow.Importance = widget.HighImportance
-
-	heroTitle := canvas.NewText("STATUS DO SISTEMA: 100% PROTEGIDO", ColorEmerald)
-	heroTitle.TextStyle = fyne.TextStyle{Bold: true}
-	heroTitle.TextSize = 14
-
-	heroSub := canvas.NewText("Monitoramento em tempo real a cada 30 min | Cache inteligente SQLite | Telemetria de APIs ativa", ColorTextSecondary)
-	heroSub.TextSize = 11
-
-	heroBody := container.NewBorder(nil, nil,
-		container.NewVBox(heroTitle, heroSub),
-		btnScanNow,
+	// 1. Hero Card de Proteção Ativa com Barra de Progresso da Varredura
+	heroTop := container.NewBorder(nil, nil,
+		container.NewVBox(dt.heroTitle, dt.heroSub),
+		dt.btnScanNow,
 	)
-	heroCard := NewPanelCard("CENTRAL DE MONITORAMENTO", NewPillBadge("TEMPO REAL", ColorEmerald, ColorEmeraldAlpha), heroBody)
+
+	scanProgressBox := container.NewVBox(
+		dt.barScanProgress,
+		dt.lblScanDetail,
+	)
+
+	heroBody := container.NewVBox(
+		heroTop,
+		scanProgressBox,
+	)
+	heroCard := NewPanelCard("CENTRAL DE MONITORAMENTO DO SISTEMA", NewPillBadge("TEMPO REAL", ColorEmerald, ColorEmeraldAlpha), heroBody)
 
 	// 2. Métricas Principais (Cards com badges modernos e cores suaves)
 	cardTotal := NewMetricCard("PROCESSOS DO SISTEMA", "Instâncias em execução", dt.lblTotal, "ATIVOS", ColorInfo, ColorInfoBg)
@@ -257,7 +331,7 @@ func (dt *DashboardTab) Content() fyne.CanvasObject {
 
 	metricsGrid := container.NewGridWithColumns(4, cardTotal, cardSafe, cardUncat, cardThreats)
 
-	// 3. Cartões de Telemetria com Fundo Elevado
+	// 3. Cartões de Telemetria com Fundo Elevado e Barras Reais
 	mbBody := container.NewVBox(
 		dt.lblMBStatus,
 		dt.lblMBFile,

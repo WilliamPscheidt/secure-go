@@ -197,16 +197,22 @@ func (th *TelemetryHub) EndVTQuery() {
 	}
 }
 
+// TriggerStateUpdate força a emissão do estado atual para todos os listeners.
+func (th *TelemetryHub) TriggerStateUpdate() {
+	th.mu.RLock()
+	st := th.state
+	cb := th.onUpdate
+	th.mu.RUnlock()
+
+	if cb != nil {
+		cb(st)
+	}
+}
+
 // RecordCacheHit registra que um hash foi resolvido sem chamada externa.
 func (th *TelemetryHub) RecordCacheHit(fileName string, safe bool) {
 	th.mu.Lock()
 	th.state.CacheHitsToday++
 	th.state.TotalCheckedToday++
 	th.mu.Unlock()
-
-	if safe {
-		th.Log(LogLevelSafe, "Cache", "Hit de cache seguro (0ms): "+fileName)
-	} else {
-		th.Log(LogLevelWarn, "Cache", "Hit de cache no banco local: "+fileName)
-	}
 }

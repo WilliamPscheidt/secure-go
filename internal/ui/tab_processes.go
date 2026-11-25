@@ -56,18 +56,16 @@ func NewProcessTab(win fyne.Window, engine *threatintel.Engine, sched *scheduler
 	pt.initUI()
 	pt.refreshProcesses()
 
-	// Conecta callbacks do scheduler para atualizar a interface em tempo real
-	sched.SetCallbacks(
-		func(status string) {
-			pt.UpdateStatus(status)
-		},
-		func(report *scheduler.ScanReport) {
-			pt.refreshProcesses()
-		},
-		func(p process.ProcessInfo, threatName string) {
-			pt.refreshProcesses()
-		},
-	)
+	// Conecta listeners do scheduler para atualizar a interface em tempo real
+	sched.AddStatusListener(func(status string) {
+		pt.UpdateStatus(status)
+	})
+	sched.AddReportListener(func(report *scheduler.ScanReport) {
+		pt.refreshProcesses()
+	})
+	sched.AddThreatListener(func(p process.ProcessInfo, threatName string) {
+		pt.refreshProcesses()
+	})
 
 	return pt
 }

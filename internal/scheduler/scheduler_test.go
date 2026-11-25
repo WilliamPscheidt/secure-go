@@ -51,3 +51,46 @@ func TestSchedulerRunCycle(t *testing.T) {
 	t.Logf("Ciclo do Scheduler concluído com sucesso: Total=%d, Safe=%d, NewlyChecked=%d, Duração=%v",
 		report.TotalProcesses, report.CachedSafe, report.NewlyChecked, report.Duration)
 }
+
+func TestSchedulerListeners(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "test_sched_listeners.db")
+
+	store, err := cache.NewStore(dbPath)
+	if err != nil {
+		t.Fatalf("falha ao criar store: %v", err)
+	}
+	defer store.Close()
+
+	engine := threatintel.NewEngine(store, "")
+	notif := notifier.NewNotifier("TestApp")
+	sched := NewScheduler(engine, notif, 5*time.Minute)
+
+	progressCalled := 0
+	reportCalled := false
+
+	sched.AddProgressListener(func(current, total int, item string) {
+		progressCalled++
+	})
+
+	sched.AddReportListener(func(report *ScanReport) {
+		reportCalled = true
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	report := sched.RunCycle(ctx)
+	if report == nil {
+		t.Fatalf("report não deveria ser nil")
+	}
+
+	time.Sleep(50 * time.Millisecond) // aguarda dispatch de goroutines dos listeners
+
+	if progressCalled == 0 {
+		t.Errorf("esperava que progressListener tivesse sido invocado")
+	}
+	if !reportCalled {
+		t.Errorf("esperava que reportListener tivesse sido invocado")
+	}
+}
