@@ -65,7 +65,10 @@ func (e *Engine) HasVirusTotalKey() bool {
 	return e.vtClient.HasAPIKey()
 }
 
-// AnalyzeHash processa o hash através das camadas: Cache Local -> MalwareBazaar -> VirusTotal.
+// AnalyzeHash processa o hash através das camadas: Cache Local -> MalwareBazaar E VirusTotal.
+// REGRA: Para ser classificado como "Não Catalogado" (UNKNOWN), o hash deve ter passado
+// obrigatoriamente por AMBOS os verificadores (MalwareBazaar e VirusTotal).
+// Se passou apenas por um, permanece como PENDENTE de verificação dupla e deve ser submetido ao outro.
 func (e *Engine) AnalyzeHash(ctx context.Context, sha256, fileName, filePath string, forceRecheck bool) (*ScanResult, error) {
 	if sha256 == "" {
 		return &ScanResult{
@@ -74,102 +77,194 @@ func (e *Engine) AnalyzeHash(ctx context.Context, sha256, fileName, filePath str
 		}, nil
 	}
 
-	// 1. Camada 1: Cache Local Persistente (se não for reanálise forçada)
+	// 1. Camada 1: Cache Local Persistente
+	var cachedRec *cache.HashRecord
 	if !forceRecheck {
 		if rec, exists, err := e.store.Get(sha256); err == nil && exists && rec != nil {
-			if e.telemetry != nil {
-				e.telemetry.RecordCacheHit(fileName, rec.Verdict == cache.VerdictSafe)
+			cachedRec = rec
+
+			// Se já for MALICIOSO ou SEGURO confirmado, retorna imediatamente
+			if rec.Verdict == cache.VerdictMalicious || rec.Verdict == cache.VerdictSafe {
+				if e.telemetry != nil {
+					e.telemetry.RecordCacheHit(fileName, rec.Verdict == cache.VerdictSafe)
+				}
+				return &ScanResult{
+					SHA256:       rec.SHA256,
+					Verdict:      rec.Verdict,
+					ThreatName:   rec.ThreatName,
+					Positives:    rec.Positives,
+					TotalEngines: rec.TotalEngines,
+					Source:       rec.Source + " (Cache Local)",
+					Details:      fmt.Sprintf("Verificado em %s via %s", rec.CheckedAt.Format("02/01/2006 15:04"), rec.Source),
+				}, nil
 			}
-			return &ScanResult{
-				SHA256:       rec.SHA256,
-				Verdict:      rec.Verdict,
-				ThreatName:   rec.ThreatName,
-				Positives:    rec.Positives,
-				TotalEngines: rec.TotalEngines,
-				Source:       rec.Source + " (Cache Local)",
-				Details:      fmt.Sprintf("Verificado em %s via %s", rec.CheckedAt.Format("02/01/2006 15:04"), rec.Source),
-			}, nil
+
+			// Se já passou por AMBOS os verificadores (MalwareBazaar E VirusTotal):
+			if rec.MBChecked && rec.VTChecked {
+				if e.telemetry != nil {
+					e.telemetry.RecordCacheHit(fileName, false)
+				}
+				return &ScanResult{
+					SHA256:       rec.SHA256,
+					Verdict:      rec.Verdict,
+					ThreatName:   rec.ThreatName,
+					Positives:    rec.Positives,
+					TotalEngines: rec.TotalEngines,
+					Source:       rec.Source + " (Cache Local)",
+					Details:      fmt.Sprintf("Dupla validação concluída em %s (MB+VT)", rec.CheckedAt.Format("02/01/2006 15:04")),
+				}, nil
+			}
+
+			// Se tiver passado por apenas um (ex: MBChecked=true mas VTChecked=false):
+			// O usuário especificou: "Se tiver passado apenas por um, deve passar pelo outro também."
+			// Portanto não encerramos aqui: prosseguimos para consultar o verificador restante!
 		}
 	}
 
-	// 2. Camada 2: MalwareBazaar (Consulta gratuita, rápida e sem cota estrita)
-	mbResult, mbErr := e.mbClient.CheckHashWithFile(ctx, sha256, fileName)
-	if mbErr == nil && mbResult != nil && mbResult.Verdict == cache.VerdictMalicious {
-		// Ameaça confirmada na base do MalwareBazaar!
-		record := &cache.HashRecord{
-			SHA256:       sha256,
-			FileName:     fileName,
-			FilePath:     filePath,
-			Verdict:      cache.VerdictMalicious,
-			ThreatName:   mbResult.ThreatName,
-			Positives:    1,
-			TotalEngines: 1,
-			Source:       "MalwareBazaar",
-			CheckedAt:    time.Now(),
-		}
-		_ = e.store.Save(record)
-		e.notifyNewVerdict(record)
-		if e.telemetry != nil {
-			e.telemetry.Log(LogLevelDanger, "MalwareBazaar", fmt.Sprintf("🚨 AMEAÇA DETECTADA: %s (%s)", mbResult.ThreatName, fileName))
-		}
-		return mbResult, nil
+	mbChecked := false
+	vtChecked := false
+	var currentThreat string
+	var currentPositives, currentTotalEngines int
+
+	if cachedRec != nil {
+		mbChecked = cachedRec.MBChecked
+		vtChecked = cachedRec.VTChecked
+		currentThreat = cachedRec.ThreatName
+		currentPositives = cachedRec.Positives
+		currentTotalEngines = cachedRec.TotalEngines
 	}
 
-	// 3. Camada 3: VirusTotal (Se a chave de API estiver cadastrada)
-	if e.vtClient.HasAPIKey() {
+	// 2. Verificador 1: MalwareBazaar (Consulta Abuse.ch)
+	if !mbChecked {
+		mbResult, mbErr := e.mbClient.CheckHashWithFile(ctx, sha256, fileName)
+		if mbErr == nil && mbResult != nil {
+			mbChecked = true
+			if mbResult.Verdict == cache.VerdictMalicious {
+				// Ameaça confirmada no MalwareBazaar!
+				record := &cache.HashRecord{
+					SHA256:       sha256,
+					FileName:     fileName,
+					FilePath:     filePath,
+					Verdict:      cache.VerdictMalicious,
+					ThreatName:   mbResult.ThreatName,
+					Positives:    1,
+					TotalEngines: 1,
+					Source:       "MalwareBazaar",
+					CheckedAt:    time.Now(),
+					MBChecked:    true,
+					VTChecked:    vtChecked,
+				}
+				_ = e.store.Save(record)
+				e.notifyNewVerdict(record)
+				if e.telemetry != nil {
+					e.telemetry.Log(LogLevelDanger, "MalwareBazaar", fmt.Sprintf("🚨 AMEAÇA DETECTADA: %s (%s)", mbResult.ThreatName, fileName))
+				}
+				return mbResult, nil
+			}
+		}
+	}
+
+	// 3. Verificador 2: VirusTotal (70+ motores antivírus)
+	if !vtChecked && e.vtClient.HasAPIKey() {
 		vtResult, vtErr := e.vtClient.CheckHashWithFile(ctx, sha256, fileName)
 		if vtErr == nil && vtResult != nil {
-			record := &cache.HashRecord{
-				SHA256:       sha256,
-				FileName:     fileName,
-				FilePath:     filePath,
-				Verdict:      vtResult.Verdict,
-				ThreatName:   vtResult.ThreatName,
-				Positives:    vtResult.Positives,
-				TotalEngines: vtResult.TotalEngines,
-				Source:       "VirusTotal",
-				CheckedAt:    time.Now(),
-			}
-			_ = e.store.Save(record)
-			e.notifyNewVerdict(record)
+			vtChecked = true
+			currentPositives = vtResult.Positives
+			currentTotalEngines = vtResult.TotalEngines
 
-			if e.telemetry != nil {
-				if vtResult.Verdict == cache.VerdictMalicious {
-					e.telemetry.Log(LogLevelDanger, "VirusTotal", fmt.Sprintf("🚨 MALWARE CONFIRMADO: %s (%s)", vtResult.ThreatName, fileName))
-				} else if vtResult.Verdict == cache.VerdictSafe {
-					e.telemetry.Log(LogLevelSafe, "VirusTotal", fmt.Sprintf("✔ LIMPO CONFIRMADO por %d motores: %s", vtResult.TotalEngines, fileName))
-				} else {
-					e.telemetry.Log(LogLevelInfo, "VirusTotal", fmt.Sprintf("ℹ Resultado VirusTotal: %s (%s)", vtResult.Verdict, fileName))
+			if vtResult.Verdict == cache.VerdictMalicious {
+				record := &cache.HashRecord{
+					SHA256:       sha256,
+					FileName:     fileName,
+					FilePath:     filePath,
+					Verdict:      cache.VerdictMalicious,
+					ThreatName:   vtResult.ThreatName,
+					Positives:    vtResult.Positives,
+					TotalEngines: vtResult.TotalEngines,
+					Source:       "VirusTotal",
+					CheckedAt:    time.Now(),
+					MBChecked:    mbChecked,
+					VTChecked:    true,
 				}
+				_ = e.store.Save(record)
+				e.notifyNewVerdict(record)
+				if e.telemetry != nil {
+					e.telemetry.Log(LogLevelDanger, "VirusTotal", fmt.Sprintf("🚨 MALWARE CONFIRMADO: %s (%s)", vtResult.ThreatName, fileName))
+				}
+				return vtResult, nil
+			} else if vtResult.Verdict == cache.VerdictSafe {
+				record := &cache.HashRecord{
+					SHA256:       sha256,
+					FileName:     fileName,
+					FilePath:     filePath,
+					Verdict:      cache.VerdictSafe,
+					ThreatName:   "",
+					Positives:    0,
+					TotalEngines: vtResult.TotalEngines,
+					Source:       "VirusTotal",
+					CheckedAt:    time.Now(),
+					MBChecked:    mbChecked,
+					VTChecked:    true,
+				}
+				_ = e.store.Save(record)
+				e.notifyNewVerdict(record)
+				if e.telemetry != nil {
+					e.telemetry.Log(LogLevelSafe, "VirusTotal", fmt.Sprintf("✔ LIMPO CONFIRMADO por %d motores: %s", vtResult.TotalEngines, fileName))
+				}
+				return vtResult, nil
 			}
-			return vtResult, nil
 		}
 	}
 
-	// 4. Se não for malware conhecido e o arquivo não possuir veredito confirmado limpo no VirusTotal:
-	// Definimos o status como NÃO CATALOGADO (VerdictUnknown), pois ausência de assinatura não garante que seja seguro.
-	finalVerdict := cache.VerdictUnknown
-	finalSource := "Não Catalogado"
-	finalDetails := "Hash inédito: não consta nas bases de malware do MalwareBazaar e não possui análise confirmada no VirusTotal."
+	// 4. REGRA REQUISITADA:
+	// Para ser "Não Catalogado" (UNKNOWN), deve ter passado por AMBOS os verificadores (Bazaar e VirusTotal).
+	// Se tiver passado apenas por um, seu status é PENDENTE de verificação dupla.
+	var finalVerdict cache.Verdict
+	var finalSource string
+	var finalDetails string
+
+	if mbChecked && vtChecked {
+		finalVerdict = cache.VerdictUnknown
+		finalSource = "MalwareBazaar + VirusTotal"
+		finalDetails = "Hash verificado em ambas as bases (MalwareBazaar e VirusTotal). Não catalogado em nenhum dos serviços."
+		if e.telemetry != nil {
+			e.telemetry.Log(LogLevelInfo, "DuplaChecagem", fmt.Sprintf("✔ Dupla verificação concluída para %s (MB e VT)", fileName))
+		}
+	} else if mbChecked && !vtChecked {
+		finalVerdict = cache.VerdictPending
+		finalSource = "MalwareBazaar (Pendente VirusTotal)"
+		finalDetails = "Verificado no MalwareBazaar. Aguardando análise no VirusTotal para validação dupla."
+	} else if !mbChecked && vtChecked {
+		finalVerdict = cache.VerdictPending
+		finalSource = "VirusTotal (Pendente MalwareBazaar)"
+		finalDetails = "Verificado no VirusTotal. Aguardando análise no MalwareBazaar para validação dupla."
+	} else {
+		finalVerdict = cache.VerdictPending
+		finalSource = "Pendente"
+		finalDetails = "Aguardando envio para verificação nos serviços de inteligência."
+	}
 
 	record := &cache.HashRecord{
 		SHA256:       sha256,
 		FileName:     fileName,
 		FilePath:     filePath,
 		Verdict:      finalVerdict,
-		ThreatName:   "",
-		Positives:    0,
-		TotalEngines: 0,
+		ThreatName:   currentThreat,
+		Positives:    currentPositives,
+		TotalEngines: currentTotalEngines,
 		Source:       finalSource,
 		CheckedAt:    time.Now(),
+		MBChecked:    mbChecked,
+		VTChecked:    vtChecked,
 	}
 	_ = e.store.Save(record)
 	e.notifyNewVerdict(record)
+
 	return &ScanResult{
 		SHA256:       sha256,
 		Verdict:      finalVerdict,
 		Source:       finalSource,
-		TotalEngines: 0,
+		TotalEngines: currentTotalEngines,
 		Details:      finalDetails,
 	}, nil
 }

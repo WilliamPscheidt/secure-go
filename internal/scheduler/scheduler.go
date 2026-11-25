@@ -283,12 +283,16 @@ func (s *Scheduler) RunCycle(ctx context.Context) *ScanReport {
 				report.SuspiciousCount++
 				continue
 			case cache.VerdictUnknown:
-				report.Uncataloged++
-				continue
+				// Só pode ser considerado "Não Catalogado" definitivo se tiver passado por AMBOS
+				if rec.MBChecked && rec.VTChecked {
+					report.Uncataloged++
+					continue
+				}
+				// Se passou por apenas um, não pula: continua para passar pelo outro!
 			}
 		}
 
-		// 2. Hash novo/nunca visto: consulta o Engine
+		// 2. Hash novo ou com verificação incompleta: consulta o Engine
 		report.NewlyChecked++
 		res, err := s.engine.AnalyzeHash(ctx, p.SHA256, p.Name, p.ExePath, false)
 		if err != nil {
@@ -306,7 +310,8 @@ func (s *Scheduler) RunCycle(ctx context.Context) *ScanReport {
 			report.SuspiciousCount++
 		} else if res.Verdict == cache.VerdictSafe {
 			report.CachedSafe++
-		} else {
+		} else if res.Verdict == cache.VerdictUnknown {
+			// Apenas se tiver passado por ambos é somado aos Não Catalogados
 			report.Uncataloged++
 		}
 	}

@@ -98,6 +98,10 @@ func (dt *DatabaseTab) initUI() {
 				badge.SetText("🚨 MALICIOSO!")
 			case cache.VerdictSuspicious:
 				badge.SetText("⚠️ SUSPEITO")
+			case cache.VerdictUnknown:
+				badge.SetText("❔ NÃO CATALOGADO (2/2)")
+			case cache.VerdictPending:
+				badge.SetText("⏳ PENDENTE DUPLA (1/2)")
 			default:
 				badge.SetText("❔ NÃO CATALOGADO")
 			}
@@ -114,10 +118,19 @@ func (dt *DatabaseTab) initUI() {
 		rec := dt.filtered[id]
 		dt.mu.RUnlock()
 
+		mbStatus := "Pendente"
+		if rec.MBChecked {
+			mbStatus = "Verificado (Sem assinatura de malware)"
+		}
+		vtStatus := "Pendente"
+		if rec.VTChecked {
+			vtStatus = "Verificado (70+ motores)"
+		}
+
 		content := fmt.Sprintf(
-			"Arquivo: %s\nCaminho: %s\n\nHash SHA-256:\n%s\n\nVeredito: %s\nOrigem: %s\nAmeaça: %s\nDetecções: %d/%d\nData da Verificação: %s",
+			"Arquivo: %s\nCaminho: %s\n\nHash SHA-256:\n%s\n\nVeredito: %s\nOrigem: %s\nAmeaça: %s\nDetecções: %d/%d\n\nChecagem MalwareBazaar: %s\nChecagem VirusTotal: %s\nData da Verificação: %s",
 			rec.FileName, rec.FilePath, rec.SHA256, rec.Verdict, rec.Source, rec.ThreatName, rec.Positives, rec.TotalEngines,
-			rec.CheckedAt.Format("02/01/2006 15:04:05"),
+			mbStatus, vtStatus, rec.CheckedAt.Format("02/01/2006 15:04:05"),
 		)
 		dlg := dialog.NewInformation("Registro do Banco Local", content, dt.window)
 		dlg.Resize(fyne.NewSize(580, 320))

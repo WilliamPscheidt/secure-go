@@ -26,6 +26,8 @@ func TestStore(t *testing.T) {
 		TotalEngines: 72,
 		Source:       "VirusTotal",
 		CheckedAt:    time.Now(),
+		MBChecked:    true,
+		VTChecked:    true,
 	}
 
 	// 1. Salvar

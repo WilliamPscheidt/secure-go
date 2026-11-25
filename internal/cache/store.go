@@ -18,7 +18,8 @@ const (
 	VerdictSafe       Verdict = "SAFE"       // Seguro / Limpo
 	VerdictMalicious  Verdict = "MALICIOUS"  // Malicioso confirmado
 	VerdictSuspicious Verdict = "SUSPICIOUS" // Suspeito (poucos motores)
-	VerdictUnknown    Verdict = "UNKNOWN"    // Não catalogado / desconhecido
+	VerdictPending    Verdict = "PENDING"    // Pendente de verificação dupla (passou apenas por 1 serviço)
+	VerdictUnknown    Verdict = "UNKNOWN"    // Não catalogado (verificado em AMBOS e ausente em ambos)
 )
 
 // HashRecord armazena todas as informações persistidas de um executável analisado.
@@ -32,6 +33,8 @@ type HashRecord struct {
 	TotalEngines int       `json:"total_engines"`
 	Source       string    `json:"source"`
 	CheckedAt    time.Time `json:"checked_at"`
+	MBChecked    bool      `json:"mb_checked"` // Verificado no MalwareBazaar
+	VTChecked    bool      `json:"vt_checked"` // Verificado no VirusTotal
 }
 
 // Store gerencia o banco de dados SQLite local de hashes.
@@ -70,7 +73,9 @@ func NewStore(dbPath string) (*Store, error) {
 		positives INTEGER DEFAULT 0,
 		total_engines INTEGER DEFAULT 0,
 		source TEXT,
-		checked_at DATETIME NOT NULL
+		checked_at DATETIME NOT NULL,
+		mb_checked INTEGER DEFAULT 0,
+		vt_checked INTEGER DEFAULT 0
 	);
 	CREATE INDEX IF NOT EXISTS idx_hash_verdict ON hash_cache(verdict);
 	CREATE INDEX IF NOT EXISTS idx_hash_checked_at ON hash_cache(checked_at);
@@ -86,6 +91,10 @@ func NewStore(dbPath string) (*Store, error) {
 		return nil, fmt.Errorf("falha ao criar tabela de hash_cache: %w", err)
 	}
 
+	// Migração segura para bancos existentes sem perda de dados
+	_, _ = db.Exec(`ALTER TABLE hash_cache ADD COLUMN mb_checked INTEGER DEFAULT 0;`)
+	_, _ = db.Exec(`ALTER TABLE hash_cache ADD COLUMN vt_checked INTEGER DEFAULT 0;`)
+
 	return &Store{db: db}, nil
 }
 
@@ -95,13 +104,14 @@ func (s *Store) Get(sha256 string) (*HashRecord, bool, error) {
 	defer s.mu.RUnlock()
 
 	row := s.db.QueryRow(`
-		SELECT sha256, file_name, file_path, verdict, threat_name, positives, total_engines, source, checked_at
+		SELECT sha256, file_name, file_path, verdict, threat_name, positives, total_engines, source, checked_at, mb_checked, vt_checked
 		FROM hash_cache
 		WHERE sha256 = ?
 	`, sha256)
 
 	var rec HashRecord
 	var checkedAtStr string
+	var mbInt, vtInt int
 	err := row.Scan(
 		&rec.SHA256,
 		&rec.FileName,
@@ -112,6 +122,8 @@ func (s *Store) Get(sha256 string) (*HashRecord, bool, error) {
 		&rec.TotalEngines,
 		&rec.Source,
 		&checkedAtStr,
+		&mbInt,
+		&vtInt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, false, nil
@@ -119,6 +131,9 @@ func (s *Store) Get(sha256 string) (*HashRecord, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
+
+	rec.MBChecked = mbInt != 0
+	rec.VTChecked = vtInt != 0
 
 	// Faz parse do timestamp
 	rec.CheckedAt, _ = time.Parse(time.RFC3339, checkedAtStr)
@@ -141,9 +156,18 @@ func (s *Store) Save(record *HashRecord) error {
 		record.CheckedAt = time.Now()
 	}
 
+	mbInt := 0
+	if record.MBChecked {
+		mbInt = 1
+	}
+	vtInt := 0
+	if record.VTChecked {
+		vtInt = 1
+	}
+
 	stmt := `
-	INSERT INTO hash_cache (sha256, file_name, file_path, verdict, threat_name, positives, total_engines, source, checked_at)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	INSERT INTO hash_cache (sha256, file_name, file_path, verdict, threat_name, positives, total_engines, source, checked_at, mb_checked, vt_checked)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT(sha256) DO UPDATE SET
 		file_name = excluded.file_name,
 		file_path = excluded.file_path,
@@ -152,7 +176,9 @@ func (s *Store) Save(record *HashRecord) error {
 		positives = excluded.positives,
 		total_engines = excluded.total_engines,
 		source = excluded.source,
-		checked_at = excluded.checked_at;
+		checked_at = excluded.checked_at,
+		mb_checked = excluded.mb_checked,
+		vt_checked = excluded.vt_checked;
 	`
 
 	_, err := s.db.Exec(stmt,
@@ -165,6 +191,8 @@ func (s *Store) Save(record *HashRecord) error {
 		record.TotalEngines,
 		record.Source,
 		record.CheckedAt.Format(time.RFC3339),
+		mbInt,
+		vtInt,
 	)
 	return err
 }
@@ -184,7 +212,7 @@ func (s *Store) ListAll(limit, offset int) ([]*HashRecord, error) {
 	defer s.mu.RUnlock()
 
 	rows, err := s.db.Query(`
-		SELECT sha256, file_name, file_path, verdict, threat_name, positives, total_engines, source, checked_at
+		SELECT sha256, file_name, file_path, verdict, threat_name, positives, total_engines, source, checked_at, mb_checked, vt_checked
 		FROM hash_cache
 		ORDER BY checked_at DESC
 		LIMIT ? OFFSET ?
@@ -198,6 +226,7 @@ func (s *Store) ListAll(limit, offset int) ([]*HashRecord, error) {
 	for rows.Next() {
 		var rec HashRecord
 		var checkedAtStr string
+		var mbInt, vtInt int
 		if err := rows.Scan(
 			&rec.SHA256,
 			&rec.FileName,
@@ -208,9 +237,13 @@ func (s *Store) ListAll(limit, offset int) ([]*HashRecord, error) {
 			&rec.TotalEngines,
 			&rec.Source,
 			&checkedAtStr,
+			&mbInt,
+			&vtInt,
 		); err != nil {
 			return nil, err
 		}
+		rec.MBChecked = mbInt != 0
+		rec.VTChecked = vtInt != 0
 		rec.CheckedAt, _ = time.Parse(time.RFC3339, checkedAtStr)
 		records = append(records, &rec)
 	}

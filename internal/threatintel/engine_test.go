@@ -47,3 +47,60 @@ func TestEngineCacheHit(t *testing.T) {
 		t.Errorf("esperava fonte de cache local, obteve %s", res.Source)
 	}
 }
+
+func TestEngineDualVerificationRule(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "test_dual.db")
+
+	store, err := cache.NewStore(dbPath)
+	if err != nil {
+		t.Fatalf("falha ao criar store: %v", err)
+	}
+	defer store.Close()
+
+	engine := NewEngine(store, "") // Sem chave do VT inicialmente
+
+	hash := "1111111111111111111111111111111111111111111111111111111111111111"
+
+	// Pré-cadastra no banco como verificado apenas no MalwareBazaar (sem passar no VT)
+	_ = store.Save(&cache.HashRecord{
+		SHA256:    hash,
+		FileName:  "custom_app.exe",
+		Verdict:   cache.VerdictPending,
+		Source:    "MalwareBazaar (Pendente VirusTotal)",
+		CheckedAt: time.Now(),
+		MBChecked: true,
+		VTChecked: false,
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// 1. Como não há chave de VT, ainda não pode ser UNKNOWN ("Não Catalogado")
+	res, err := engine.AnalyzeHash(ctx, hash, "custom_app.exe", "C:\\custom_app.exe", false)
+	if err != nil {
+		t.Fatalf("falha ao analisar: %v", err)
+	}
+	if res.Verdict != cache.VerdictPending {
+		t.Errorf("esperava VerdictPending pois passou apenas por um verificador, obteve: %s", res.Verdict)
+	}
+
+	// 2. Agora simula que o hash foi validado em ambos
+	_ = store.Save(&cache.HashRecord{
+		SHA256:    hash,
+		FileName:  "custom_app.exe",
+		Verdict:   cache.VerdictUnknown,
+		Source:    "MalwareBazaar + VirusTotal",
+		CheckedAt: time.Now(),
+		MBChecked: true,
+		VTChecked: true,
+	})
+
+	resDual, err := engine.AnalyzeHash(ctx, hash, "custom_app.exe", "C:\\custom_app.exe", false)
+	if err != nil {
+		t.Fatalf("falha ao analisar hash com dupla verificação: %v", err)
+	}
+	if resDual.Verdict != cache.VerdictUnknown {
+		t.Errorf("esperava VerdictUnknown após validação dupla, obteve: %s", resDual.Verdict)
+	}
+}

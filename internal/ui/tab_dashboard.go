@@ -287,8 +287,12 @@ func (dt *DashboardTab) updateMetrics() {
 					safeCount++
 				case cache.VerdictMalicious:
 					threatCount++
+				case cache.VerdictUnknown:
+					if rec.MBChecked && rec.VTChecked {
+						uncatCount++
+					}
 				default:
-					uncatCount++
+					// Pendente de validação dupla
 				}
 			} else {
 				uncatCount++

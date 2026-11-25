@@ -138,13 +138,19 @@ func (pt *ProcessTab) initUI() {
 
 			switch item.Verdict {
 			case cache.VerdictSafe:
-				badge.SetText("✔ SEGURO (Cache)")
+				badge.SetText("✔ SEGURO")
 			case cache.VerdictMalicious:
 				badge.SetText("🚨 MALICIOSO!")
 			case cache.VerdictSuspicious:
 				badge.SetText("⚠️ SUSPEITO")
 			case cache.VerdictUnknown:
-				badge.SetText("❔ NÃO CATALOGADO")
+				badge.SetText("❔ NÃO CATALOGADO (2/2)")
+			case cache.VerdictPending:
+				if strings.Contains(item.Source, "VirusTotal") {
+					badge.SetText("⏳ PENDENTE BAZAAR (1/2)")
+				} else {
+					badge.SetText("⏳ PENDENTE VT (1/2)")
+				}
 			default:
 				if item.SHA256 != "" {
 					badge.SetText("ℹ AGUARDANDO")
