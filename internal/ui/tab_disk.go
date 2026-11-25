@@ -79,10 +79,10 @@ func (dt *DiskTab) initUI() {
 	dt.statusLabel = widget.NewLabel("Selecione um diretório ou unidade de disco para iniciar a verificação.")
 	dt.statusLabel.TextStyle = fyne.TextStyle{Italic: true}
 
-	dt.lblTotal = widget.NewLabelWithStyle("Arquivos: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
-	dt.lblSafe = widget.NewLabelWithStyle("Seguros: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
-	dt.lblUncataloged = widget.NewLabelWithStyle("Não Catalogados: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
-	dt.lblMalicious = widget.NewLabelWithStyle("Maliciosos: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	dt.lblTotal = widget.NewLabelWithStyle("0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	dt.lblSafe = widget.NewLabelWithStyle("0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	dt.lblUncataloged = widget.NewLabelWithStyle("0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	dt.lblMalicious = widget.NewLabelWithStyle("0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 
 	dt.btnStart = widget.NewButtonWithIcon("Iniciar Varredura", theme.MediaPlayIcon(), dt.startScan)
 	dt.btnStart.Importance = widget.HighImportance
@@ -199,10 +199,10 @@ func (dt *DiskTab) startScan() {
 
 			// Atualiza UI com segurança na thread do Fyne
 			fyne.Do(func() {
-				dt.lblSafe.SetText(fmt.Sprintf("Seguros: %d", safeCount))
-				dt.lblUncataloged.SetText(fmt.Sprintf("Não Catalogados: %d", uncatalogedCount))
-				dt.lblMalicious.SetText(fmt.Sprintf("Maliciosos: %d", malCount))
-				dt.lblTotal.SetText(fmt.Sprintf("Arquivos: %d", currTotal))
+				dt.lblSafe.SetText(fmt.Sprintf("%d", safeCount))
+				dt.lblUncataloged.SetText(fmt.Sprintf("%d", uncatalogedCount))
+				dt.lblMalicious.SetText(fmt.Sprintf("%d", malCount))
+				dt.lblTotal.SetText(fmt.Sprintf("%d", currTotal))
 				dt.resultsList.Refresh()
 			})
 		},
@@ -241,15 +241,19 @@ func (dt *DiskTab) startScan() {
 func (dt *DiskTab) Content() fyne.CanvasObject {
 	pathBox := container.NewBorder(nil, nil, nil, dt.btnBrowse, dt.pathEntry)
 
+	cardTotal := widget.NewCard("ALVO", "Total Indexado", dt.lblTotal)
+	cardSafe := widget.NewCard("SEGUROS", "Cache Confirmado", dt.lblSafe)
+	cardUncat := widget.NewCard("NÃO CATALOGADOS", "Sem Assinatura", dt.lblUncataloged)
+	cardMal := widget.NewCard("MALICIOSOS", "Ameaças em Disco", dt.lblMalicious)
+
 	controlsBox := container.NewVBox(
 		pathBox,
 		container.NewHBox(dt.chkOnlyExec, dt.btnStart, dt.btnCancel),
-		widget.NewSeparator(),
 		container.NewGridWithColumns(4,
-			dt.lblTotal,
-			dt.lblSafe,
-			dt.lblUncataloged,
-			dt.lblMalicious,
+			cardTotal,
+			cardSafe,
+			cardUncat,
+			cardMal,
 		),
 		dt.progressBar,
 		dt.statusLabel,

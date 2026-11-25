@@ -64,6 +64,7 @@ func (st *SettingsTab) initUI() {
 		st.updateStatusLabels()
 		dialog.ShowInformation("Configuração Salva", "Chave do VirusTotal atualizada com sucesso!", st.window)
 	})
+	st.btnSaveVT.Importance = widget.HighImportance
 
 	// 2. Intervalo do Agendador
 	intervals := []string{"15 minutos", "30 minutos (Recomendado)", "60 minutos"}
@@ -113,38 +114,41 @@ func (st *SettingsTab) updateStatusLabels() {
 }
 
 func (st *SettingsTab) Content() fyne.CanvasObject {
-	vtBox := container.NewVBox(
-		widget.NewLabelWithStyle("Chave de API do VirusTotal", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewLabel("Com a chave gratuita do VirusTotal, o sistema realiza até 4 req/min de novos hashes.\nHashes já catalogados como limpos no banco local NÃO consomem sua cota."),
-		container.NewBorder(nil, nil, nil, st.btnSaveVT, st.vtKeyEntry),
+	cardVT := widget.NewCard("API VIRUSTOTAL v3", "Cota gratuita de 4 req/minuto com Rate Limiting integrado",
+		container.NewVBox(
+			widget.NewLabel("Hashes já analisados no banco local NÃO consomem sua cota diária do VirusTotal."),
+			container.NewBorder(nil, nil, nil, st.btnSaveVT, st.vtKeyEntry),
+		),
 	)
 
-	intervalBox := container.NewVBox(
-		widget.NewLabelWithStyle("Intervalo de Análise Automática de Processos", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewLabel("Frequência com que o sistema verifica processos ativos em segundo plano:"),
-		st.intervalSel,
+	cardInterval := widget.NewCard("AGENDADOR DE MONITORAMENTO", "Frequência da varredura periódica em segundo plano",
+		container.NewVBox(
+			widget.NewLabel("Intervalo de verificação de processos ativos:"),
+			st.intervalSel,
+		),
 	)
 
-	statusBox := container.NewVBox(
-		widget.NewLabelWithStyle("Status dos Motores e Banco Local", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		st.lblMBStatus,
-		st.lblVTStatus,
-		st.lblDBStatus,
+	cardStatus := widget.NewCard("INTEGRIDADE DOS MOTORES", "Status dos serviços de Threat Intelligence e Cache",
+		container.NewVBox(
+			st.lblMBStatus,
+			st.lblVTStatus,
+			st.lblDBStatus,
+		),
 	)
 
-	testBox := container.NewVBox(
-		widget.NewLabelWithStyle("Teste de Notificações", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewLabel("Verifique se o Windows está exibindo os alertas sonoros e visuais corretamente:"),
-		st.btnTestAlert,
+	cardTest := widget.NewCard("TESTE DE ALERTAS", "Validação de alertas sonoros e visuais (Windows Toast)",
+		container.NewVBox(
+			widget.NewLabel("Dispare uma notificação de teste para verificar se o Windows exibe os alertas:"),
+			st.btnTestAlert,
+		),
 	)
 
-	return container.NewVBox(
-		vtBox,
-		widget.NewSeparator(),
-		intervalBox,
-		widget.NewSeparator(),
-		statusBox,
-		widget.NewSeparator(),
-		testBox,
+	return container.NewVScroll(
+		container.NewVBox(
+			cardVT,
+			cardInterval,
+			cardStatus,
+			cardTest,
+		),
 	)
 }

@@ -42,13 +42,13 @@ func NewDatabaseTab(win fyne.Window, engine *threatintel.Engine) *DatabaseTab {
 }
 
 func (dt *DatabaseTab) initUI() {
-	dt.lblTotal = widget.NewLabelWithStyle("Hashes Cadastrados: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
-	dt.lblSafe = widget.NewLabelWithStyle("Seguros: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
-	dt.lblUncataloged = widget.NewLabelWithStyle("Não Catalogados: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
-	dt.lblMalicious = widget.NewLabelWithStyle("Ameaças: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	dt.lblTotal = widget.NewLabelWithStyle("0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	dt.lblSafe = widget.NewLabelWithStyle("0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	dt.lblUncataloged = widget.NewLabelWithStyle("0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	dt.lblMalicious = widget.NewLabelWithStyle("0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 
 	dt.searchEntry = widget.NewEntry()
-	dt.searchEntry.SetPlaceHolder("Buscar por hash SHA-256, executável ou veredito...")
+	dt.searchEntry.SetPlaceHolder("🔍 Buscar por hash SHA-256, executável ou veredito...")
 	dt.searchEntry.OnChanged = func(q string) {
 		dt.filterItems(q)
 	}
@@ -136,10 +136,10 @@ func (dt *DatabaseTab) Refresh() {
 
 		fyne.Do(func() {
 			if err == nil {
-				dt.lblTotal.SetText(fmt.Sprintf("Cadastrados: %d", stats.Total))
-				dt.lblSafe.SetText(fmt.Sprintf("Seguros: %d", stats.Safe))
-				dt.lblUncataloged.SetText(fmt.Sprintf("Não Catalogados: %d", stats.Unknown))
-				dt.lblMalicious.SetText(fmt.Sprintf("Ameaças: %d", stats.Malicious))
+				dt.lblTotal.SetText(fmt.Sprintf("%d", stats.Total))
+				dt.lblSafe.SetText(fmt.Sprintf("%d", stats.Safe))
+				dt.lblUncataloged.SetText(fmt.Sprintf("%d", stats.Unknown))
+				dt.lblMalicious.SetText(fmt.Sprintf("%d", stats.Malicious))
 			}
 			dt.filterItems(dt.searchEntry.Text)
 		})
@@ -213,16 +213,24 @@ func (dt *DatabaseTab) showAddSafeDialog() {
 }
 
 func (dt *DatabaseTab) Content() fyne.CanvasObject {
+	cardTotal := widget.NewCard("CADASTRADOS", "Total no Banco", dt.lblTotal)
+	cardSafe := widget.NewCard("SEGUROS", "Whitelist / Confirmados", dt.lblSafe)
+	cardUncat := widget.NewCard("NÃO CATALOGADOS", "Sem Assinatura", dt.lblUncataloged)
+	cardMal := widget.NewCard("MALICIOSOS", "Ameaças Conhecidas", dt.lblMalicious)
+
+	btnAdd := widget.NewButtonWithIcon("Adicionar Confiável (Whitelist)", theme.ContentAddIcon(), dt.showAddSafeDialog)
+	btnAdd.Importance = widget.HighImportance
+
 	header := container.NewVBox(
 		container.NewGridWithColumns(4,
-			dt.lblTotal,
-			dt.lblSafe,
-			dt.lblUncataloged,
-			dt.lblMalicious,
+			cardTotal,
+			cardSafe,
+			cardUncat,
+			cardMal,
 		),
 		widget.NewSeparator(),
 		container.NewBorder(nil, nil, nil, container.NewHBox(
-			widget.NewButtonWithIcon("Adicionar Confiável", theme.ContentAddIcon(), dt.showAddSafeDialog),
+			btnAdd,
 			widget.NewButtonWithIcon("Recarregar", theme.ViewRefreshIcon(), dt.Refresh),
 		), dt.searchEntry),
 		widget.NewSeparator(),

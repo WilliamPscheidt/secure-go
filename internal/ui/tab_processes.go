@@ -76,13 +76,13 @@ func (pt *ProcessTab) initUI() {
 	pt.statusLabel = widget.NewLabel("Monitorando em tempo real (intervalo: 30 minutos)")
 	pt.statusLabel.TextStyle = fyne.TextStyle{Italic: true}
 
-	pt.lblTotal = widget.NewLabelWithStyle("Processos: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
-	pt.lblSafe = widget.NewLabelWithStyle("Seguros: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
-	pt.lblUncataloged = widget.NewLabelWithStyle("Não Catalogados: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
-	pt.lblThreats = widget.NewLabelWithStyle("Ameaças: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	pt.lblTotal = widget.NewLabelWithStyle("0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	pt.lblSafe = widget.NewLabelWithStyle("0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	pt.lblUncataloged = widget.NewLabelWithStyle("0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	pt.lblThreats = widget.NewLabelWithStyle("0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 
 	pt.searchEntry = widget.NewEntry()
-	pt.searchEntry.SetPlaceHolder("Filtrar processo por nome, PID ou hash...")
+	pt.searchEntry.SetPlaceHolder("🔍 Filtrar processos por nome, PID ou hash...")
 	pt.searchEntry.OnChanged = func(q string) {
 		pt.filterItems(q)
 	}
@@ -95,6 +95,7 @@ func (pt *ProcessTab) initUI() {
 			pt.btnScanNow.Enable()
 		}()
 	})
+	pt.btnScanNow.Importance = widget.HighImportance
 
 	pt.listWidget = widget.NewList(
 		func() int {
@@ -172,14 +173,18 @@ func (pt *ProcessTab) initUI() {
 }
 
 func (pt *ProcessTab) Content() fyne.CanvasObject {
+	cardTotal := widget.NewCard("ATIVOS", "Total Sistema", pt.lblTotal)
+	cardSafe := widget.NewCard("SEGUROS", "Confirmados", pt.lblSafe)
+	cardUncat := widget.NewCard("NÃO CATALOGADOS", "Sem Assinatura", pt.lblUncataloged)
+	cardThreats := widget.NewCard("AMEAÇAS", "Confirmadas", pt.lblThreats)
+
 	header := container.NewVBox(
 		pt.statusLabel,
-		widget.NewSeparator(),
 		container.NewGridWithColumns(4,
-			pt.lblTotal,
-			pt.lblSafe,
-			pt.lblUncataloged,
-			pt.lblThreats,
+			cardTotal,
+			cardSafe,
+			cardUncat,
+			cardThreats,
 		),
 		widget.NewSeparator(),
 		container.NewBorder(nil, nil, nil, pt.btnScanNow, pt.searchEntry),
@@ -242,10 +247,10 @@ func (pt *ProcessTab) refreshProcesses() {
 
 		fyne.Do(func() {
 			pt.filterItems(pt.searchEntry.Text)
-			pt.lblTotal.SetText(fmt.Sprintf("Processos: %d", len(items)))
-			pt.lblSafe.SetText(fmt.Sprintf("Seguros: %d", safeCount))
-			pt.lblUncataloged.SetText(fmt.Sprintf("Não Catalogados: %d", uncatalogedCount))
-			pt.lblThreats.SetText(fmt.Sprintf("Ameaças: %d", threatCount))
+			pt.lblTotal.SetText(fmt.Sprintf("%d", len(items)))
+			pt.lblSafe.SetText(fmt.Sprintf("%d", safeCount))
+			pt.lblUncataloged.SetText(fmt.Sprintf("%d", uncatalogedCount))
+			pt.lblThreats.SetText(fmt.Sprintf("%d", threatCount))
 		})
 	}()
 }
