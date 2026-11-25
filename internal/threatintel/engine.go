@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"secure-go/internal/cache"
 	"secure-go/internal/heuristics"
+	"secure-go/internal/yara"
 )
 
 // Engine coordena o cache local persistente e as fontes de inteligência contra ameaças.
@@ -18,6 +20,7 @@ type Engine struct {
 	mbClient     *MalwareBazaarClient
 	vtClient     *VirusTotalClient
 	telemetry    *TelemetryHub
+	yaraScanner  *yara.Scanner
 	mu           sync.RWMutex
 	onNewVerdict func(rec *cache.HashRecord)
 }
@@ -30,12 +33,20 @@ func NewEngine(store *cache.Store, vtAPIKey string) *Engine {
 	vt := NewVirusTotalClient(vtAPIKey)
 	vt.SetTelemetry(th)
 
+	ys, _ := yara.DefaultScanner()
+
 	return &Engine{
-		store:     store,
-		mbClient:  mb,
-		vtClient:  vt,
-		telemetry: th,
+		store:       store,
+		mbClient:    mb,
+		vtClient:    vt,
+		telemetry:   th,
+		yaraScanner: ys,
 	}
+}
+
+// YaraScanner retorna o motor de inteligência e regras YARA offline.
+func (e *Engine) YaraScanner() *yara.Scanner {
+	return e.yaraScanner
 }
 
 // Telemetry retorna o hub de eventos e telemetria ao vivo.
@@ -169,6 +180,31 @@ func (e *Engine) AnalyzeHash(ctx context.Context, sha256, fileName, filePath str
 
 	// 1.1 Camada Heurística & Certificados Digitais Authenticode (Economiza cota de API)
 	if filePath != "" {
+		// Proteção contra auto-varredura: não alertar sobre o próprio binário do SecureGo ou de testes
+		if isSelfExecutable(filePath) {
+			record := &cache.HashRecord{
+				SHA256:       sha256,
+				FileName:     fileName,
+				FilePath:     filePath,
+				Verdict:      cache.VerdictSafe,
+				ThreatName:   "",
+				Positives:    0,
+				TotalEngines: 0,
+				Source:       "SecureGo (Auto-Proteção)",
+				CheckedAt:    time.Now(),
+				MBChecked:    true,
+				VTChecked:    true,
+			}
+			_ = e.store.Save(record)
+			e.notifyNewVerdict(record)
+			return &ScanResult{
+				SHA256:       sha256,
+				Verdict:      cache.VerdictSafe,
+				Source:       "SecureGo (Auto-Proteção)",
+				Details:      "Binário legítimo do próprio motor de proteção SecureGo.",
+			}, nil
+		}
+
 		if _, statErr := os.Stat(filePath); statErr == nil {
 			// A) Verificação de Assinatura Authenticode nativa
 			sigInfo := heuristics.VerifyAuthenticode(filePath)
@@ -232,6 +268,41 @@ func (e *Engine) AnalyzeHash(ctx context.Context, sha256, fileName, filePath str
 			peRes := heuristics.AnalyzePE(filePath)
 			if peRes.IsSuspicious && e.telemetry != nil {
 				e.telemetry.Log(LogLevelWarn, "Heurística/PE", fmt.Sprintf("⚠ Indicador suspeito em %s: %s (Entropia: %.2f)", fileName, strings.Join(peRes.Indicators, "; "), peRes.MaxEntropy))
+			}
+
+			// C) Análise por Regras YARA (Inteligência Offline e Zero Cota)
+			if e.yaraScanner != nil {
+				if yaraMatches, yErr := e.yaraScanner.ScanFile(filePath); yErr == nil && len(yaraMatches) > 0 {
+					firstMatch := yaraMatches[0]
+					threatName := fmt.Sprintf("YARA: %s (%s)", firstMatch.RuleName, firstMatch.Description)
+					record := &cache.HashRecord{
+						SHA256:       sha256,
+						FileName:     fileName,
+						FilePath:     filePath,
+						Verdict:      cache.VerdictMalicious,
+						ThreatName:   threatName,
+						Positives:    1,
+						TotalEngines: 1,
+						Source:       "YARA (Inteligência Offline)",
+						CheckedAt:    time.Now(),
+						MBChecked:    true,
+						VTChecked:    true,
+					}
+					_ = e.store.Save(record)
+					e.notifyNewVerdict(record)
+					if e.telemetry != nil {
+						e.telemetry.Log(LogLevelDanger, "YARA", fmt.Sprintf("🚨 MALWARE IDENTIFICADO POR YARA: %s via regra '%s'", fileName, firstMatch.RuleName))
+					}
+					return &ScanResult{
+						SHA256:       sha256,
+						Verdict:      cache.VerdictMalicious,
+						ThreatName:   threatName,
+						Positives:    1,
+						TotalEngines: 1,
+						Source:       "YARA (Inteligência Offline)",
+						Details:      fmt.Sprintf("Detectado localmente pela regra YARA '%s'. Sem necessidade de cota de API externa.", firstMatch.RuleName),
+					}, nil
+				}
 			}
 		}
 	}
@@ -391,4 +462,27 @@ func (e *Engine) notifyNewVerdict(rec *cache.HashRecord) {
 	if cb != nil {
 		go cb(rec)
 	}
+}
+
+// isSelfExecutable verifica se o arquivo sendo analisado é o próprio binário do SecureGo ou um executável de testes do projeto.
+func isSelfExecutable(filePath string) bool {
+	if filePath == "" {
+		return false
+	}
+	cleanTarget := filepath.Clean(filePath)
+
+	// 1. Verifica contra o processo atualmente em execução
+	if selfExe, err := os.Executable(); err == nil && selfExe != "" {
+		if strings.EqualFold(cleanTarget, filepath.Clean(selfExe)) {
+			return true
+		}
+	}
+
+	// 2. Proteção contra binários de teste ou instâncias do SecureGo
+	base := strings.ToLower(filepath.Base(cleanTarget))
+	if base == "secure-go.exe" || base == "secure-go-v2.exe" || strings.HasSuffix(base, ".test.exe") {
+		return true
+	}
+
+	return false
 }

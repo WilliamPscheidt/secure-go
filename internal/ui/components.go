@@ -167,7 +167,7 @@ func NewProtectionScoreGauge(score int, statusText string) fyne.CanvasObject {
 
 	item1 := container.NewHBox(canvas.NewText("✔", ColorScoreGreen), canvas.NewText("Monitoramento em tempo real ativo", ColorTextSecondary))
 	item2 := container.NewHBox(canvas.NewText("✔", ColorScoreGreen), canvas.NewText("Heurística Authenticode operacional", ColorTextSecondary))
-	item3 := container.NewHBox(canvas.NewText("✔", ColorScoreGreen), canvas.NewText("Threat Network Map supervisionado", ColorTextSecondary))
+	item3 := container.NewHBox(canvas.NewText("✔", ColorScoreGreen), canvas.NewText("Motor de Regras YARA offline ativo", ColorTextSecondary))
 	item4 := container.NewHBox(canvas.NewText("✔", ColorScoreGreen), canvas.NewText("Inteligência Abuse.ch + VirusTotal", ColorTextSecondary))
 
 	checklist := container.NewVBox(item1, item2, item3, item4)

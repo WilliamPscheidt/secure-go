@@ -39,6 +39,7 @@ func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notif
 	processTab := NewProcessTab(w, engine, sched)
 	networkTab := NewNetworkTab(w, engine)
 	diskTab := NewDiskTab(w, engine)
+	yaraTab := NewYaraTab(w, engine)
 	databaseTab := NewDatabaseTab(w, engine)
 	settingsTab := NewSettingsTab(w, engine, sched, notif)
 
@@ -61,6 +62,7 @@ func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notif
 		{"Processos Ativos", IconFAProcesses, processTab.Content(), nil},
 		{"Mapa de Rede", IconFANetwork, networkTab.Content(), nil},
 		{"Scanner de Disco", IconFADisk, diskTab.Content(), nil},
+		{"Regras YARA", IconFACode, yaraTab.Content(), nil},
 		{"Banco de Hashes", IconFADatabase, databaseTab.Content(), nil},
 		{"Configurações", IconFAGear, settingsTab.Content(), nil},
 	}
@@ -144,7 +146,7 @@ func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notif
 	brandSub := canvas.NewText("CYBER DEFENDER & THREAT MONITOR", ColorTextSecondary)
 	brandSub.TextSize = 11
 
-	topBannerStatusPill := NewPillBadge("● TEMPO REAL ATIVO (WATCHER + HEURÍSTICA)", ColorCyan, ColorCyanAlpha)
+	topBannerStatusPill := NewPillBadge("● TEMPO REAL ATIVO (WATCHER + YARA + HEURÍSTICA)", ColorCyan, ColorCyanAlpha)
 
 	headerBanner := container.NewVBox(
 		container.NewPadded(

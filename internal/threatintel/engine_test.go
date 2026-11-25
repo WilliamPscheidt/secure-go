@@ -2,7 +2,9 @@ package threatintel
 
 import (
 	"context"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -134,5 +136,43 @@ func TestEngineAuthenticodeBypass(t *testing.T) {
 	rec, found, _ := store.Get("fake_hash_git")
 	if !found || rec.Verdict != cache.VerdictSafe || !rec.MBChecked || !rec.VTChecked {
 		t.Errorf("registro não persistido corretamente para Authenticode: %+v", rec)
+	}
+}
+
+func TestEngineYaraDetection(t *testing.T) {
+	tempDir := t.TempDir()
+	dbPath := filepath.Join(tempDir, "test_yara_engine.db")
+
+	store, err := cache.NewStore(dbPath)
+	if err != nil {
+		t.Fatalf("falha ao criar store: %v", err)
+	}
+	defer store.Close()
+
+	engine := NewEngine(store, "")
+
+	// Cria arquivo malicioso simulado com comando de ransomware
+	malPath := filepath.Join(tempDir, "malicious_script.bat")
+	_ = os.WriteFile(malPath, []byte("@echo off\r\nvssadmin.exe delete shadows /all /quiet\r\n"), 0644)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	res, err := engine.AnalyzeHash(ctx, "fake_yara_hash", "malicious_script.bat", malPath, true)
+	if err != nil {
+		t.Fatalf("AnalyzeHash falhou: %v", err)
+	}
+
+	if res.Verdict != cache.VerdictMalicious {
+		t.Errorf("esperava VerdictMalicious via YARA, obteve: %s", res.Verdict)
+	}
+	if !strings.Contains(res.Source, "YARA") {
+		t.Errorf("esperava fonte YARA, obteve: %s", res.Source)
+	}
+
+	// Verifica se persistiu no store
+	rec, found, _ := store.Get("fake_yara_hash")
+	if !found || rec.Verdict != cache.VerdictMalicious {
+		t.Errorf("registro YARA não salvo corretamente: %+v", rec)
 	}
 }
