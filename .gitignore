@@ -10,6 +10,8 @@
 *.db-shm
 *.db-wal
 antimalware.db
+*.log
+secure-go.log
 
 # OS & IDE
 .DS_Store

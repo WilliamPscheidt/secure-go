@@ -30,9 +30,10 @@ type DiskTab struct {
 	progressBar  *widget.ProgressBar
 	statusLabel  *widget.Label
 
-	lblSafe      *widget.Label
-	lblMalicious *widget.Label
-	lblTotal     *widget.Label
+	lblSafe        *widget.Label
+	lblUncataloged *widget.Label
+	lblMalicious   *widget.Label
+	lblTotal       *widget.Label
 
 	results      []*scanner.FileScanResult
 	resultsList  *widget.List
@@ -79,7 +80,8 @@ func (dt *DiskTab) initUI() {
 	dt.statusLabel.TextStyle = fyne.TextStyle{Italic: true}
 
 	dt.lblTotal = widget.NewLabelWithStyle("Arquivos: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
-	dt.lblSafe = widget.NewLabelWithStyle("Seguros (Limpos): 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	dt.lblSafe = widget.NewLabelWithStyle("Seguros: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	dt.lblUncataloged = widget.NewLabelWithStyle("Não Catalogados: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 	dt.lblMalicious = widget.NewLabelWithStyle("Maliciosos: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 
 	dt.btnStart = widget.NewButtonWithIcon("Iniciar Varredura", theme.MediaPlayIcon(), dt.startScan)
@@ -135,7 +137,7 @@ func (dt *DiskTab) initUI() {
 			case cache.VerdictSuspicious:
 				badge.SetText("⚠️ SUSPEITO")
 			default:
-				badge.SetText("ℹ DESCONHECIDO")
+				badge.SetText("❔ NÃO CATALOGADO")
 			}
 		},
 	)
@@ -178,6 +180,7 @@ func (dt *DiskTab) startScan() {
 	dt.statusLabel.SetText("Indexando arquivos para varredura...")
 
 	safeCount := 0
+	uncatalogedCount := 0
 	malCount := 0
 
 	dt.diskScanner.SetCallbacks(
@@ -188,13 +191,16 @@ func (dt *DiskTab) startScan() {
 				safeCount++
 			} else if res.Verdict == cache.VerdictMalicious {
 				malCount++
+			} else if res.Verdict == cache.VerdictUnknown {
+				uncatalogedCount++
 			}
 			currTotal := len(dt.results)
 			dt.mu.Unlock()
 
 			// Atualiza UI com segurança na thread do Fyne
 			fyne.Do(func() {
-				dt.lblSafe.SetText(fmt.Sprintf("Seguros (Limpos): %d", safeCount))
+				dt.lblSafe.SetText(fmt.Sprintf("Seguros: %d", safeCount))
+				dt.lblUncataloged.SetText(fmt.Sprintf("Não Catalogados: %d", uncatalogedCount))
 				dt.lblMalicious.SetText(fmt.Sprintf("Maliciosos: %d", malCount))
 				dt.lblTotal.SetText(fmt.Sprintf("Arquivos: %d", currTotal))
 				dt.resultsList.Refresh()
@@ -239,9 +245,10 @@ func (dt *DiskTab) Content() fyne.CanvasObject {
 		pathBox,
 		container.NewHBox(dt.chkOnlyExec, dt.btnStart, dt.btnCancel),
 		widget.NewSeparator(),
-		container.NewGridWithColumns(3,
+		container.NewGridWithColumns(4,
 			dt.lblTotal,
 			dt.lblSafe,
+			dt.lblUncataloged,
 			dt.lblMalicious,
 		),
 		dt.progressBar,

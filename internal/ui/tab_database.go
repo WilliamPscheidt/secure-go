@@ -23,9 +23,10 @@ type DatabaseTab struct {
 	filtered     []*cache.HashRecord
 	listWidget   *widget.List
 	searchEntry  *widget.Entry
-	lblTotal     *widget.Label
-	lblSafe      *widget.Label
-	lblMalicious *widget.Label
+	lblTotal       *widget.Label
+	lblSafe        *widget.Label
+	lblUncataloged *widget.Label
+	lblMalicious   *widget.Label
 	mu           sync.RWMutex
 }
 
@@ -42,8 +43,9 @@ func NewDatabaseTab(win fyne.Window, engine *threatintel.Engine) *DatabaseTab {
 
 func (dt *DatabaseTab) initUI() {
 	dt.lblTotal = widget.NewLabelWithStyle("Hashes Cadastrados: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
-	dt.lblSafe = widget.NewLabelWithStyle("Hashes Seguros: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
-	dt.lblMalicious = widget.NewLabelWithStyle("Ameaças Confirmadas: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	dt.lblSafe = widget.NewLabelWithStyle("Seguros: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	dt.lblUncataloged = widget.NewLabelWithStyle("Não Catalogados: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	dt.lblMalicious = widget.NewLabelWithStyle("Ameaças: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 
 	dt.searchEntry = widget.NewEntry()
 	dt.searchEntry.SetPlaceHolder("Buscar por hash SHA-256, executável ou veredito...")
@@ -97,7 +99,7 @@ func (dt *DatabaseTab) initUI() {
 			case cache.VerdictSuspicious:
 				badge.SetText("⚠️ SUSPEITO")
 			default:
-				badge.SetText("ℹ OUTRO")
+				badge.SetText("❔ NÃO CATALOGADO")
 			}
 		},
 	)
@@ -134,9 +136,10 @@ func (dt *DatabaseTab) Refresh() {
 
 		fyne.Do(func() {
 			if err == nil {
-				dt.lblTotal.SetText(fmt.Sprintf("Hashes Cadastrados: %d", stats.Total))
-				dt.lblSafe.SetText(fmt.Sprintf("Hashes Seguros: %d", stats.Safe))
-				dt.lblMalicious.SetText(fmt.Sprintf("Ameaças Confirmadas: %d", stats.Malicious))
+				dt.lblTotal.SetText(fmt.Sprintf("Cadastrados: %d", stats.Total))
+				dt.lblSafe.SetText(fmt.Sprintf("Seguros: %d", stats.Safe))
+				dt.lblUncataloged.SetText(fmt.Sprintf("Não Catalogados: %d", stats.Unknown))
+				dt.lblMalicious.SetText(fmt.Sprintf("Ameaças: %d", stats.Malicious))
 			}
 			dt.filterItems(dt.searchEntry.Text)
 		})
@@ -211,9 +214,10 @@ func (dt *DatabaseTab) showAddSafeDialog() {
 
 func (dt *DatabaseTab) Content() fyne.CanvasObject {
 	header := container.NewVBox(
-		container.NewGridWithColumns(3,
+		container.NewGridWithColumns(4,
 			dt.lblTotal,
 			dt.lblSafe,
+			dt.lblUncataloged,
 			dt.lblMalicious,
 		),
 		widget.NewSeparator(),

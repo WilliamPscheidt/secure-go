@@ -114,39 +114,31 @@ func (e *Engine) AnalyzeHash(ctx context.Context, sha256, fileName, filePath str
 		}
 	}
 
-	// 4. Se o VirusTotal não estiver configurado mas o MalwareBazaar confirmou ausência de assinaturas conhecidas:
-	// Marcamos como SAFE localmente caso não haja evidências maliciosas, ou UNKNOWN para rechecagem futura.
-	finalVerdict := cache.VerdictSafe
-	finalSource := "MalwareBazaar (Clean Check)"
-	if !e.vtClient.HasAPIKey() {
-		finalDetails := "Não consta em bases de malware conhecidas (MalwareBazaar). Chave VirusTotal não informada."
-		record := &cache.HashRecord{
-			SHA256:       sha256,
-			FileName:     fileName,
-			FilePath:     filePath,
-			Verdict:      finalVerdict,
-			ThreatName:   "",
-			Positives:    0,
-			TotalEngines: 1,
-			Source:       finalSource,
-			CheckedAt:    time.Now(),
-		}
-		_ = e.store.Save(record)
-		e.notifyNewVerdict(record)
-		return &ScanResult{
-			SHA256:       sha256,
-			Verdict:      finalVerdict,
-			Source:       finalSource,
-			TotalEngines: 1,
-			Details:      finalDetails,
-		}, nil
-	}
+	// 4. Se não for malware conhecido e o arquivo não possuir veredito confirmado limpo no VirusTotal:
+	// Definimos o status como NÃO CATALOGADO (VerdictUnknown), pois ausência de assinatura não garante que seja seguro.
+	finalVerdict := cache.VerdictUnknown
+	finalSource := "Não Catalogado"
+	finalDetails := "Hash inédito: não consta nas bases de malware do MalwareBazaar e não possui análise confirmada no VirusTotal."
 
+	record := &cache.HashRecord{
+		SHA256:       sha256,
+		FileName:     fileName,
+		FilePath:     filePath,
+		Verdict:      finalVerdict,
+		ThreatName:   "",
+		Positives:    0,
+		TotalEngines: 0,
+		Source:       finalSource,
+		CheckedAt:    time.Now(),
+	}
+	_ = e.store.Save(record)
+	e.notifyNewVerdict(record)
 	return &ScanResult{
-		SHA256:  sha256,
-		Verdict: cache.VerdictUnknown,
-		Source:  "None",
-		Details: "Não foi possível determinar o status do arquivo",
+		SHA256:       sha256,
+		Verdict:      finalVerdict,
+		Source:       finalSource,
+		TotalEngines: 0,
+		Details:      finalDetails,
 	}, nil
 }
 

@@ -15,14 +15,15 @@ import (
 
 // ScanReport resume as métricas do ciclo de varredura executado.
 type ScanReport struct {
-	StartTime       time.Time        `json:"start_time"`
-	Duration        time.Duration    `json:"duration"`
-	TotalProcesses  int              `json:"total_processes"`
-	CachedSafe      int              `json:"cached_safe"`
-	NewlyChecked    int              `json:"newly_checked"`
-	ThreatsDetected int              `json:"threats_detected"`
-	SuspiciousCount int              `json:"suspicious_count"`
-	ErrorsCount     int              `json:"errors_count"`
+	StartTime       time.Time             `json:"start_time"`
+	Duration        time.Duration         `json:"duration"`
+	TotalProcesses  int                   `json:"total_processes"`
+	CachedSafe      int                   `json:"cached_safe"`
+	NewlyChecked    int                   `json:"newly_checked"`
+	ThreatsDetected int                   `json:"threats_detected"`
+	SuspiciousCount int                   `json:"suspicious_count"`
+	Uncataloged     int                   `json:"uncataloged"`
+	ErrorsCount     int                   `json:"errors_count"`
 	ThreatsList     []process.ProcessInfo `json:"threats_list,omitempty"`
 }
 
@@ -249,6 +250,10 @@ func (s *Scheduler) RunCycle(ctx context.Context) *ScanReport {
 			_ = s.notifier.SendMalwareAlert(p.Name, p.PID, res.ThreatName, p.SHA256)
 		} else if res.Verdict == cache.VerdictSuspicious {
 			report.SuspiciousCount++
+		} else if res.Verdict == cache.VerdictSafe {
+			report.CachedSafe++
+		} else {
+			report.Uncataloged++
 		}
 	}
 
@@ -258,8 +263,8 @@ func (s *Scheduler) RunCycle(ctx context.Context) *ScanReport {
 	s.lastReport = report
 	s.mu.Unlock()
 
-	summary := fmt.Sprintf("Concluído: %d processos analisados (%d em cache seguro, %d novos, %d ameaças)",
-		report.TotalProcesses, report.CachedSafe, report.NewlyChecked, report.ThreatsDetected)
+	summary := fmt.Sprintf("Concluído: %d processos analisados (%d seguros, %d não catalogados, %d ameaças)",
+		report.TotalProcesses, report.CachedSafe, report.Uncataloged, report.ThreatsDetected)
 	s.notifyStatus(summary)
 
 	s.mu.RLock()

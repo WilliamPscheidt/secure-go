@@ -155,8 +155,10 @@ func (v *VirusTotalClient) CheckHash(ctx context.Context, sha256 string) (*ScanR
 		if result.ThreatName == "" {
 			result.ThreatName = fmt.Sprintf("Suspeito: %d malicioso, %d suspeito em %d motores", positives, stats.Suspicious, total)
 		}
-	} else {
+	} else if total > 0 && (stats.Harmless > 0 || stats.Undetected > 0) {
 		result.Verdict = cache.VerdictSafe
+	} else {
+		result.Verdict = cache.VerdictUnknown
 	}
 
 	result.Details = fmt.Sprintf("Engines: %d/%d (Limpo: %d, Malicioso: %d, Suspeito: %d)",

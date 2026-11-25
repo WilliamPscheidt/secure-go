@@ -269,13 +269,18 @@ func (ds *DiskScanner) scanSingleFile(ctx context.Context, filePath string) *Fil
 		return res
 	}
 
-	// Verifica se já estava marcado como malicioso no banco
+	// Verifica se já estava catalogado no banco como Malicioso ou Não Catalogado
 	if rec, exists, _ := ds.engine.Store().Get(sha256); exists && rec != nil {
 		if rec.Verdict == cache.VerdictMalicious {
 			res.Verdict = cache.VerdictMalicious
 			res.ThreatName = rec.ThreatName
 			res.Source = "Banco Local (Malicioso)"
 			res.Details = fmt.Sprintf("Ameaça conhecida: %s (detectado via %s)", rec.ThreatName, rec.Source)
+			return res
+		} else if rec.Verdict == cache.VerdictUnknown {
+			res.Verdict = cache.VerdictUnknown
+			res.Source = "Banco Local (Não Catalogado)"
+			res.Details = "Arquivo não consta nos catálogos de ameaças nem possui confirmação limpa."
 			return res
 		}
 	}

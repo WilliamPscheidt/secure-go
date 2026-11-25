@@ -37,11 +37,12 @@ type ProcessTab struct {
 	filtered     []ProcessViewItem
 	listWidget   *widget.List
 	searchEntry  *widget.Entry
-	statusLabel  *widget.Label
-	lblTotal     *widget.Label
-	lblSafe      *widget.Label
-	lblThreats   *widget.Label
-	btnScanNow   *widget.Button
+	statusLabel    *widget.Label
+	lblTotal       *widget.Label
+	lblSafe        *widget.Label
+	lblUncataloged *widget.Label
+	lblThreats     *widget.Label
+	btnScanNow     *widget.Button
 	mu           sync.RWMutex
 }
 
@@ -76,7 +77,8 @@ func (pt *ProcessTab) initUI() {
 	pt.statusLabel.TextStyle = fyne.TextStyle{Italic: true}
 
 	pt.lblTotal = widget.NewLabelWithStyle("Processos: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
-	pt.lblSafe = widget.NewLabelWithStyle("Seguros (Cache): 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	pt.lblSafe = widget.NewLabelWithStyle("Seguros: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+	pt.lblUncataloged = widget.NewLabelWithStyle("Não Catalogados: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 	pt.lblThreats = widget.NewLabelWithStyle("Ameaças: 0", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 
 	pt.searchEntry = widget.NewEntry()
@@ -143,6 +145,8 @@ func (pt *ProcessTab) initUI() {
 				badge.SetText("🚨 MALICIOSO!")
 			case cache.VerdictSuspicious:
 				badge.SetText("⚠️ SUSPEITO")
+			case cache.VerdictUnknown:
+				badge.SetText("❔ NÃO CATALOGADO")
 			default:
 				if item.SHA256 != "" {
 					badge.SetText("ℹ AGUARDANDO")
@@ -171,9 +175,10 @@ func (pt *ProcessTab) Content() fyne.CanvasObject {
 	header := container.NewVBox(
 		pt.statusLabel,
 		widget.NewSeparator(),
-		container.NewGridWithColumns(3,
+		container.NewGridWithColumns(4,
 			pt.lblTotal,
 			pt.lblSafe,
+			pt.lblUncataloged,
 			pt.lblThreats,
 		),
 		widget.NewSeparator(),
@@ -199,6 +204,7 @@ func (pt *ProcessTab) refreshProcesses() {
 
 		var items []ProcessViewItem
 		safeCount := 0
+		uncatalogedCount := 0
 		threatCount := 0
 
 		for _, p := range procs {
@@ -219,7 +225,11 @@ func (pt *ProcessTab) refreshProcesses() {
 						safeCount++
 					} else if rec.Verdict == cache.VerdictMalicious {
 						threatCount++
+					} else if rec.Verdict == cache.VerdictUnknown {
+						uncatalogedCount++
 					}
+				} else {
+					uncatalogedCount++
 				}
 			}
 
@@ -233,7 +243,8 @@ func (pt *ProcessTab) refreshProcesses() {
 		fyne.Do(func() {
 			pt.filterItems(pt.searchEntry.Text)
 			pt.lblTotal.SetText(fmt.Sprintf("Processos: %d", len(items)))
-			pt.lblSafe.SetText(fmt.Sprintf("Seguros (Cache): %d", safeCount))
+			pt.lblSafe.SetText(fmt.Sprintf("Seguros: %d", safeCount))
+			pt.lblUncataloged.SetText(fmt.Sprintf("Não Catalogados: %d", uncatalogedCount))
 			pt.lblThreats.SetText(fmt.Sprintf("Ameaças: %d", threatCount))
 		})
 	}()
