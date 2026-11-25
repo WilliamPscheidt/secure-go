@@ -7,7 +7,31 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
-// CustomTheme implementa um tema Dark-Mode moderno com estética cyberpunk/hacker em tons de verde neon.
+// Cores corporativas elegantes de Cibersegurança (Emerald & Dark Slate)
+var (
+	ColorSlateBg      = color.NRGBA{R: 11, G: 17, B: 28, A: 255}  // #0b111c - Fundo Dark Slate profundo
+	ColorCardBg       = color.NRGBA{R: 18, G: 27, B: 43, A: 255}  // #121b2b - Superfície dos Cards
+	ColorCardBorder   = color.NRGBA{R: 33, G: 48, B: 71, A: 255}  // #213047 - Borda sutil dos Cards
+	ColorInputBg      = color.NRGBA{R: 14, G: 21, B: 34, A: 255}  // #0e1522 - Fundo de Inputs
+
+	ColorEmerald      = color.NRGBA{R: 16, G: 185, B: 129, A: 255} // #10b981 - Verde Esmeralda Suave
+	ColorEmeraldHover = color.NRGBA{R: 5, G: 150, B: 105, A: 255}  // #059669 - Esmeralda Escuro
+	ColorEmeraldSoft  = color.NRGBA{R: 52, G: 211, B: 153, A: 255} // #34d399 - Verde Menta para Destaques
+	ColorEmeraldAlpha = color.NRGBA{R: 16, G: 185, B: 129, A: 35}  // #10b98123 - Brilho translúcido suave
+
+	ColorTextPrimary   = color.NRGBA{R: 248, G: 250, B: 252, A: 255} // #f8fafc - Branco Platinum
+	ColorTextSecondary = color.NRGBA{R: 148, G: 163, B: 184, A: 255} // #94a3b8 - Cinza ardósia suave
+	ColorTextMuted     = color.NRGBA{R: 100, G: 116, B: 139, A: 255} // #64748b - Texto secundário
+
+	ColorDanger   = color.NRGBA{R: 239, G: 68, B: 68, A: 255}   // #ef4444 - Vermelho Alerta
+	ColorDangerBg = color.NRGBA{R: 239, G: 68, B: 68, A: 30}   // Vermelho translúcido suave
+	ColorWarn     = color.NRGBA{R: 245, G: 158, B: 11, A: 255}  // #f59e0b - Âmbar Suave
+	ColorWarnBg   = color.NRGBA{R: 245, G: 158, B: 11, A: 30}
+	ColorInfo     = color.NRGBA{R: 56, G: 189, B: 248, A: 255}   // #38bdf8 - Azul Ciano Suave
+	ColorInfoBg   = color.NRGBA{R: 56, G: 189, B: 248, A: 30}
+)
+
+// CustomTheme implementa o tema Dark Slate profissional com acentos em verde esmeralda suave.
 type CustomTheme struct {
 	fyne.Theme
 }
@@ -18,66 +42,53 @@ func NewCustomTheme() *CustomTheme {
 
 func (c *CustomTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
 	switch name {
-	// Fundo principal OLED / Dark Slate profundo
 	case theme.ColorNameBackground:
-		return color.NRGBA{R: 10, G: 14, B: 19, A: 255} // #0a0e13
+		return ColorSlateBg
 
-	// Fundo de inputs e caixas de texto
 	case theme.ColorNameInputBackground:
-		return color.NRGBA{R: 16, G: 23, B: 30, A: 255} // #10171e
+		return ColorInputBg
 
-	// Cor primária: Verde Esmeralda Neon Cyberpunk
 	case theme.ColorNamePrimary:
-		return color.NRGBA{R: 0, G: 230, B: 118, A: 255} // #00e676 (Neon Green)
+		return ColorEmerald
 
-	// Foco e seleção com brilho verde neon
 	case theme.ColorNameFocus:
-		return color.NRGBA{R: 0, G: 255, B: 136, A: 255} // #00ff88
+		return ColorEmeraldSoft
 
 	case theme.ColorNameSelection:
-		return color.NRGBA{R: 0, G: 230, B: 118, A: 60} // Verde translúcido para destaques
+		return ColorEmeraldAlpha
 
-	// Sucesso / Limpo / Seguro
 	case theme.ColorNameSuccess:
-		return color.NRGBA{R: 0, G: 230, B: 118, A: 255}
+		return ColorEmerald
 
-	// Alertas de Malware
 	case theme.ColorNameError:
-		return color.NRGBA{R: 255, G: 61, B: 87, A: 255} // #ff3d57 (Neon Red)
+		return ColorDanger
 
-	// Suspeito
 	case theme.ColorNameWarning:
-		return color.NRGBA{R: 255, G: 179, B: 0, A: 255} // #ffb300 (Amber Neon)
+		return ColorWarn
 
-	// Texto principal: Branco puro nítido
 	case theme.ColorNameForeground:
-		return color.NRGBA{R: 240, G: 246, B: 252, A: 255} // #f0f6fc
+		return ColorTextPrimary
 
-	// Fundo de botões secundários
 	case theme.ColorNameButton:
-		return color.NRGBA{R: 18, G: 28, B: 24, A: 255} // Slate escuro com leve toque esmeralda
+		return color.NRGBA{R: 24, G: 35, B: 52, A: 255} // Botão suave escuro
 
-	// Desabilitados
 	case theme.ColorNameDisabled:
-		return color.NRGBA{R: 70, G: 80, B: 90, A: 255}
+		return color.NRGBA{R: 71, G: 85, B: 105, A: 255}
 
 	case theme.ColorNameDisabledButton:
-		return color.NRGBA{R: 20, G: 26, B: 32, A: 255}
+		return color.NRGBA{R: 20, G: 28, B: 40, A: 255}
 
-	// Separadores e bordas sutis
 	case theme.ColorNameSeparator:
-		return color.NRGBA{R: 24, G: 38, B: 32, A: 255}
+		return ColorCardBorder
 
-	// Fundo de menus e popups
 	case theme.ColorNameMenuBackground, theme.ColorNameOverlayBackground:
-		return color.NRGBA{R: 14, G: 20, B: 26, A: 255}
+		return color.NRGBA{R: 15, G: 23, B: 36, A: 255}
 
-	// Barra de rolagem estilizada
 	case theme.ColorNameScrollBar:
-		return color.NRGBA{R: 0, G: 200, B: 100, A: 120}
+		return color.NRGBA{R: 16, G: 185, B: 129, A: 100}
 
 	case theme.ColorNameShadow:
-		return color.NRGBA{R: 0, G: 0, B: 0, A: 180}
+		return color.NRGBA{R: 0, G: 0, B: 0, A: 160}
 
 	default:
 		return c.Theme.Color(name, theme.VariantDark)
@@ -91,7 +102,7 @@ func (c *CustomTheme) Size(name fyne.ThemeSizeName) float32 {
 	case theme.SizeNameInnerPadding:
 		return 6
 	case theme.SizeNameScrollBar:
-		return 10
+		return 8
 	case theme.SizeNameScrollBarSmall:
 		return 4
 	default:

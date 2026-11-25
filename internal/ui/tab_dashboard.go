@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
@@ -227,44 +228,55 @@ func (dt *DashboardTab) updateMetrics() {
 }
 
 func (dt *DashboardTab) Content() fyne.CanvasObject {
-	// 1. Métricas Principais (Cards de alta visibilidade)
-	cardTotal := widget.NewCard("PROCESSOS", "Ativos no Sistema", dt.lblTotal)
-	cardSafe := widget.NewCard("SEGUROS", "Confirmados Limpos", dt.lblSafe)
-	cardUncat := widget.NewCard("NÃO CATALOGADOS", "Sem Assinatura", dt.lblUncataloged)
-	cardThreats := widget.NewCard("AMEAÇAS", "Malware Confirmado", dt.lblThreats)
-
-	metricsGrid := container.NewGridWithColumns(4, cardTotal, cardSafe, cardUncat, cardThreats)
-
-	// 2. Cartão de Telemetria MalwareBazaar
-	cardMB := widget.NewCard("🌐 MALWAREBAZAAR (ABUSE.CH)", "Motor Ilimitado de Assinaturas Globais",
-		container.NewVBox(
-			dt.lblMBStatus,
-			dt.lblMBFile,
-			dt.barMBActivity,
-		),
-	)
-
-	// 3. Cartão de Telemetria VirusTotal com Cronômetro
-	cardVT := widget.NewCard("🛡️ VIRUSTOTAL v3 (70+ MOTORES)", "Fila de Transmissão & Rate Limiter (Máx 4 req/min)",
-		container.NewVBox(
-			dt.lblVTStatus,
-			dt.lblVTFile,
-			dt.barVTProgress,
-			dt.lblVTTimer,
-		),
-	)
-
-	telemetryGrid := container.NewGridWithColumns(2, cardMB, cardVT)
-
-	// 4. Ações Rápidas
-	btnScanNow := widget.NewButtonWithIcon("Disparar Varredura Completa", theme.MediaPlayIcon(), func() {
+	// 1. Hero Card de Proteção Ativa
+	btnScanNow := widget.NewButtonWithIcon("Escanear Processos Agora", theme.MediaPlayIcon(), func() {
 		dt.engine.Telemetry().Log(threatintel.LogLevelInfo, "Manual", "Disparando ciclo de análise sob demanda...")
 		go dt.scheduler.TriggerNow()
 		go dt.updateMetrics()
 	})
 	btnScanNow.Importance = widget.HighImportance
 
-	btnTestAlert := widget.NewButtonWithIcon("Testar Alerta Desktop", theme.MailSendIcon(), func() {
+	heroTitle := canvas.NewText("STATUS DO SISTEMA: 100% PROTEGIDO", ColorEmerald)
+	heroTitle.TextStyle = fyne.TextStyle{Bold: true}
+	heroTitle.TextSize = 14
+
+	heroSub := canvas.NewText("Monitoramento em tempo real a cada 30 min | Cache inteligente SQLite | Telemetria de APIs ativa", ColorTextSecondary)
+	heroSub.TextSize = 11
+
+	heroBody := container.NewBorder(nil, nil,
+		container.NewVBox(heroTitle, heroSub),
+		btnScanNow,
+	)
+	heroCard := NewPanelCard("CENTRAL DE MONITORAMENTO", NewPillBadge("TEMPO REAL", ColorEmerald, ColorEmeraldAlpha), heroBody)
+
+	// 2. Métricas Principais (Cards com badges modernos e cores suaves)
+	cardTotal := NewMetricCard("PROCESSOS DO SISTEMA", "Instâncias em execução", dt.lblTotal, "ATIVOS", ColorInfo, ColorInfoBg)
+	cardSafe := NewMetricCard("HASHES SEGUROS", "Confirmados limpos em cache", dt.lblSafe, "✔ SEGUROS", ColorEmerald, ColorEmeraldAlpha)
+	cardUncat := NewMetricCard("NÃO CATALOGADOS", "Sem assinatura nas bases", dt.lblUncataloged, "❔ INÉDITOS", ColorWarn, ColorWarnBg)
+	cardThreats := NewMetricCard("AMEAÇAS CONFIRMADAS", "Malware ativo detectado", dt.lblThreats, "🚨 AMEAÇAS", ColorDanger, ColorDangerBg)
+
+	metricsGrid := container.NewGridWithColumns(4, cardTotal, cardSafe, cardUncat, cardThreats)
+
+	// 3. Cartões de Telemetria com Fundo Elevado
+	mbBody := container.NewVBox(
+		dt.lblMBStatus,
+		dt.lblMBFile,
+		dt.barMBActivity,
+	)
+	cardMB := NewPanelCard("🌐 MALWAREBAZAAR (ABUSE.CH)", NewPillBadge("GRATUITO / ILIMITADO", ColorEmerald, ColorEmeraldAlpha), mbBody)
+
+	vtBody := container.NewVBox(
+		dt.lblVTStatus,
+		dt.lblVTFile,
+		dt.barVTProgress,
+		dt.lblVTTimer,
+	)
+	cardVT := NewPanelCard("🛡️ VIRUSTOTAL v3 (70+ MOTORES)", NewPillBadge("RATE LIMIT 4/MIN", ColorInfo, ColorInfoBg), vtBody)
+
+	telemetryGrid := container.NewGridWithColumns(2, cardMB, cardVT)
+
+	// 4. Ações Rápidas do Terminal
+	btnTestAlert := widget.NewButtonWithIcon("Testar Alerta", theme.MailSendIcon(), func() {
 		_ = dt.notifier.SendMalwareAlert("processo_teste.exe", 1234, "Teste.Dashboard.Alerta", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 		dt.engine.Telemetry().Log(threatintel.LogLevelWarn, "Alerta", "Alerta sonoro e visual disparado na Área de Trabalho.")
 		dialog.ShowInformation("Alerta Disparado", "Notificação de teste enviada para sua Área de Trabalho!", dt.window)
@@ -277,18 +289,18 @@ func (dt *DashboardTab) Content() fyne.CanvasObject {
 		dt.logList.Refresh()
 	})
 
-	actionsBox := container.NewHBox(btnScanNow, btnTestAlert, btnClearLogs)
+	actionsBox := container.NewHBox(btnTestAlert, btnClearLogs)
 
-	// 5. Cabeçalho do Terminal ao Vivo
-	lblTerminal := widget.NewLabelWithStyle("⚡ FLUXO DE ATIVIDADES EM TEMPO REAL (LIVE THREAT STREAM)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	headerTerminal := container.NewBorder(nil, nil,
+		widget.NewLabelWithStyle("⚡ LIVE THREAT STREAM & TELEMETRIA", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		actionsBox,
+	)
 
 	topContainer := container.NewVBox(
+		heroCard,
 		metricsGrid,
-		widget.NewSeparator(),
 		telemetryGrid,
-		widget.NewSeparator(),
-		container.NewBorder(nil, nil, lblTerminal, actionsBox),
-		widget.NewSeparator(),
+		headerTerminal,
 	)
 
 	return container.NewBorder(topContainer, nil, nil, nil, dt.logList)

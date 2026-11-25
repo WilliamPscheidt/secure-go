@@ -173,10 +173,12 @@ func (pt *ProcessTab) initUI() {
 }
 
 func (pt *ProcessTab) Content() fyne.CanvasObject {
-	cardTotal := widget.NewCard("ATIVOS", "Total Sistema", pt.lblTotal)
-	cardSafe := widget.NewCard("SEGUROS", "Confirmados", pt.lblSafe)
-	cardUncat := widget.NewCard("NÃO CATALOGADOS", "Sem Assinatura", pt.lblUncataloged)
-	cardThreats := widget.NewCard("AMEAÇAS", "Confirmadas", pt.lblThreats)
+	cardTotal := NewMetricCard("TOTAL PROCESSOS", "Instâncias em execução", pt.lblTotal, "ATIVOS", ColorInfo, ColorInfoBg)
+	cardSafe := NewMetricCard("SEGUROS", "Confirmados no banco local", pt.lblSafe, "✔ SEGUROS", ColorEmerald, ColorEmeraldAlpha)
+	cardUncat := NewMetricCard("NÃO CATALOGADOS", "Sem assinatura nas bases", pt.lblUncataloged, "❔ INÉDITOS", ColorWarn, ColorWarnBg)
+	cardThreats := NewMetricCard("AMEAÇAS", "Malware ativo detectado", pt.lblThreats, "🚨 AMEAÇAS", ColorDanger, ColorDangerBg)
+
+	searchPanel := NewPanelCard("FILTRO E PESQUISA DE PROCESSOS", pt.btnScanNow, pt.searchEntry)
 
 	header := container.NewVBox(
 		pt.statusLabel,
@@ -186,9 +188,7 @@ func (pt *ProcessTab) Content() fyne.CanvasObject {
 			cardUncat,
 			cardThreats,
 		),
-		widget.NewSeparator(),
-		container.NewBorder(nil, nil, nil, pt.btnScanNow, pt.searchEntry),
-		widget.NewSeparator(),
+		searchPanel,
 	)
 
 	return container.NewBorder(header, nil, nil, nil, pt.listWidget)

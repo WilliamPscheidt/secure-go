@@ -213,13 +213,18 @@ func (dt *DatabaseTab) showAddSafeDialog() {
 }
 
 func (dt *DatabaseTab) Content() fyne.CanvasObject {
-	cardTotal := widget.NewCard("CADASTRADOS", "Total no Banco", dt.lblTotal)
-	cardSafe := widget.NewCard("SEGUROS", "Whitelist / Confirmados", dt.lblSafe)
-	cardUncat := widget.NewCard("NÃO CATALOGADOS", "Sem Assinatura", dt.lblUncataloged)
-	cardMal := widget.NewCard("MALICIOSOS", "Ameaças Conhecidas", dt.lblMalicious)
+	cardTotal := NewMetricCard("CADASTRADOS", "Total no banco SQLite", dt.lblTotal, "TOTAL", ColorInfo, ColorInfoBg)
+	cardSafe := NewMetricCard("SEGUROS", "Whitelist e confirmados", dt.lblSafe, "✔ SEGUROS", ColorEmerald, ColorEmeraldAlpha)
+	cardUncat := NewMetricCard("NÃO CATALOGADOS", "Sem registro nas bases", dt.lblUncataloged, "❔ INÉDITOS", ColorWarn, ColorWarnBg)
+	cardMal := NewMetricCard("MALICIOSOS", "Ameaças catalogadas", dt.lblMalicious, "🚨 AMEAÇAS", ColorDanger, ColorDangerBg)
 
-	btnAdd := widget.NewButtonWithIcon("Adicionar Confiável (Whitelist)", theme.ContentAddIcon(), dt.showAddSafeDialog)
+	btnAdd := widget.NewButtonWithIcon("Adicionar à Whitelist", theme.ContentAddIcon(), dt.showAddSafeDialog)
 	btnAdd.Importance = widget.HighImportance
+
+	toolbarPanel := NewPanelCard("PESQUISA E GESTÃO DO BANCO DE HASHES",
+		container.NewHBox(btnAdd, widget.NewButtonWithIcon("Recarregar", theme.ViewRefreshIcon(), dt.Refresh)),
+		dt.searchEntry,
+	)
 
 	header := container.NewVBox(
 		container.NewGridWithColumns(4,
@@ -228,12 +233,7 @@ func (dt *DatabaseTab) Content() fyne.CanvasObject {
 			cardUncat,
 			cardMal,
 		),
-		widget.NewSeparator(),
-		container.NewBorder(nil, nil, nil, container.NewHBox(
-			btnAdd,
-			widget.NewButtonWithIcon("Recarregar", theme.ViewRefreshIcon(), dt.Refresh),
-		), dt.searchEntry),
-		widget.NewSeparator(),
+		toolbarPanel,
 	)
 
 	return container.NewBorder(header, nil, nil, nil, dt.listWidget)

@@ -241,23 +241,26 @@ func (dt *DiskTab) startScan() {
 func (dt *DiskTab) Content() fyne.CanvasObject {
 	pathBox := container.NewBorder(nil, nil, nil, dt.btnBrowse, dt.pathEntry)
 
-	cardTotal := widget.NewCard("ALVO", "Total Indexado", dt.lblTotal)
-	cardSafe := widget.NewCard("SEGUROS", "Cache Confirmado", dt.lblSafe)
-	cardUncat := widget.NewCard("NÃO CATALOGADOS", "Sem Assinatura", dt.lblUncataloged)
-	cardMal := widget.NewCard("MALICIOSOS", "Ameaças em Disco", dt.lblMalicious)
+	scanPanel := NewPanelCard("DIRETÓRIO OU UNIDADE DE DISCO", container.NewHBox(dt.btnStart, dt.btnCancel),
+		container.NewVBox(
+			pathBox,
+			dt.chkOnlyExec,
+			dt.progressBar,
+			dt.statusLabel,
+		),
+	)
+
+	cardTotal := NewMetricCard("ARQUIVOS NO ALVO", "Total indexado", dt.lblTotal, "TOTAL", ColorInfo, ColorInfoBg)
+	cardSafe := NewMetricCard("SEGUROS", "Confirmados limpos", dt.lblSafe, "✔ SEGUROS", ColorEmerald, ColorEmeraldAlpha)
+	cardUncat := NewMetricCard("NÃO CATALOGADOS", "Sem assinatura nas bases", dt.lblUncataloged, "❔ INÉDITOS", ColorWarn, ColorWarnBg)
+	cardMal := NewMetricCard("MALICIOSOS", "Ameaças no disco", dt.lblMalicious, "🚨 AMEAÇAS", ColorDanger, ColorDangerBg)
+
+	metricsGrid := container.NewGridWithColumns(4, cardTotal, cardSafe, cardUncat, cardMal)
 
 	controlsBox := container.NewVBox(
-		pathBox,
-		container.NewHBox(dt.chkOnlyExec, dt.btnStart, dt.btnCancel),
-		container.NewGridWithColumns(4,
-			cardTotal,
-			cardSafe,
-			cardUncat,
-			cardMal,
-		),
-		dt.progressBar,
-		dt.statusLabel,
-		widget.NewSeparator(),
+		scanPanel,
+		metricsGrid,
+		widget.NewLabelWithStyle("ARQUIVOS ANALISADOS", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 	)
 
 	return container.NewBorder(controlsBox, nil, nil, nil, dt.resultsList)

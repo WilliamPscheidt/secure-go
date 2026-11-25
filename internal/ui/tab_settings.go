@@ -114,21 +114,21 @@ func (st *SettingsTab) updateStatusLabels() {
 }
 
 func (st *SettingsTab) Content() fyne.CanvasObject {
-	cardVT := widget.NewCard("API VIRUSTOTAL v3", "Cota gratuita de 4 req/minuto com Rate Limiting integrado",
+	cardVT := NewPanelCard("API VIRUSTOTAL v3", NewPillBadge("RATE LIMIT 4/MIN", ColorInfo, ColorInfoBg),
 		container.NewVBox(
-			widget.NewLabel("Hashes já analisados no banco local NÃO consomem sua cota diária do VirusTotal."),
+			widget.NewLabel("Com a chave gratuita do VirusTotal, o sistema realiza até 4 req/minuto com espaçamento automático.\nHashes já catalogados como limpos no banco local NÃO consomem sua cota diária."),
 			container.NewBorder(nil, nil, nil, st.btnSaveVT, st.vtKeyEntry),
 		),
 	)
 
-	cardInterval := widget.NewCard("AGENDADOR DE MONITORAMENTO", "Frequência da varredura periódica em segundo plano",
+	cardInterval := NewPanelCard("AGENDADOR DE MONITORAMENTO", NewPillBadge("PERIÓDICO", ColorEmerald, ColorEmeraldAlpha),
 		container.NewVBox(
-			widget.NewLabel("Intervalo de verificação de processos ativos:"),
+			widget.NewLabel("Defina a frequência da varredura automática em segundo plano:"),
 			st.intervalSel,
 		),
 	)
 
-	cardStatus := widget.NewCard("INTEGRIDADE DOS MOTORES", "Status dos serviços de Threat Intelligence e Cache",
+	cardStatus := NewPanelCard("INTEGRIDADE DOS MOTORES DE INTELIGÊNCIA", NewPillBadge("ATIVO", ColorEmerald, ColorEmeraldAlpha),
 		container.NewVBox(
 			st.lblMBStatus,
 			st.lblVTStatus,
@@ -136,9 +136,9 @@ func (st *SettingsTab) Content() fyne.CanvasObject {
 		),
 	)
 
-	cardTest := widget.NewCard("TESTE DE ALERTAS", "Validação de alertas sonoros e visuais (Windows Toast)",
+	cardTest := NewPanelCard("TESTE DE ALERTAS NO DESKTOP", NewPillBadge("WINDOWS TOAST", ColorWarn, ColorWarnBg),
 		container.NewVBox(
-			widget.NewLabel("Dispare uma notificação de teste para verificar se o Windows exibe os alertas:"),
+			widget.NewLabel("Dispare um alerta sonoro e visual de teste para validar as notificações na sua Área de Trabalho:"),
 			st.btnTestAlert,
 		),
 	)

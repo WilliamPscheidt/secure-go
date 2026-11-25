@@ -3,9 +3,9 @@ package ui
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 
 	"secure-go/internal/cache"
 	"secure-go/internal/notifier"
@@ -51,16 +51,23 @@ func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notif
 	tabs.SetTabLocation(container.TabLocationTop)
 
 	// Barra superior estilizada com branding e indicador de proteção
-	brandTitle := widget.NewLabelWithStyle("🛡️ SECURE-GO", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	brandSub := widget.NewLabel("CYBERSECURITY & THREAT MONITOR")
-	statusPill := widget.NewLabelWithStyle("● PROTEÇÃO ATIVA (TEMPO REAL)", fyne.TextAlignTrailing, fyne.TextStyle{Bold: true})
+	brandTitle := canvas.NewText("🛡️ SECURE-GO", ColorEmerald)
+	brandTitle.TextStyle = fyne.TextStyle{Bold: true}
+	brandTitle.TextSize = 14
+
+	brandSub := canvas.NewText("ENTERPRISE CYBER DEFENDER & THREAT MONITOR", ColorTextSecondary)
+	brandSub.TextSize = 11
+
+	statusPill := NewPillBadge("● PROTEÇÃO EM TEMPO REAL ATIVA", ColorEmerald, ColorEmeraldAlpha)
 
 	headerBanner := container.NewVBox(
-		container.NewBorder(nil, nil,
-			container.NewHBox(brandTitle, widget.NewLabel("|"), brandSub),
-			statusPill,
+		container.NewPadded(
+			container.NewBorder(nil, nil,
+				container.NewHBox(brandTitle, canvas.NewText("|", ColorCardBorder), brandSub),
+				statusPill,
+			),
 		),
-		widget.NewSeparator(),
+		canvas.NewLine(ColorCardBorder),
 	)
 
 	w.SetContent(container.NewBorder(headerBanner, nil, nil, nil, tabs))
