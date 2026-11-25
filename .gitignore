@@ -1,0 +1,18 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Local Databases and WAL
+*.db
+*.db-shm
+*.db-wal
+antimalware.db
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

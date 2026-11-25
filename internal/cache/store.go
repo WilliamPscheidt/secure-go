@@ -74,6 +74,11 @@ func NewStore(dbPath string) (*Store, error) {
 	);
 	CREATE INDEX IF NOT EXISTS idx_hash_verdict ON hash_cache(verdict);
 	CREATE INDEX IF NOT EXISTS idx_hash_checked_at ON hash_cache(checked_at);
+
+	CREATE TABLE IF NOT EXISTS app_config (
+		key TEXT PRIMARY KEY,
+		value TEXT NOT NULL
+	);
 	`
 
 	if _, err := db.Exec(createTableSQL); err != nil {
@@ -254,6 +259,29 @@ func (s *Store) GetStats() (Stats, error) {
 	}
 
 	return stats, nil
+}
+
+// GetConfig lê uma chave de configuração do banco.
+func (s *Store) GetConfig(key string) (string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var val string
+	err := s.db.QueryRow(`SELECT value FROM app_config WHERE key = ?`, key).Scan(&val)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return val, err
+}
+
+// SetConfig grava ou atualiza uma chave de configuração no banco.
+func (s *Store) SetConfig(key, value string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	stmt := `INSERT INTO app_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value;`
+	_, err := s.db.Exec(stmt, key, value)
+	return err
 }
 
 // Close encerra a conexão com o banco de dados.
