@@ -34,14 +34,15 @@ var monitoredExtensions = map[string]bool{
 
 // FileWatcher monitora pastas críticas do sistema operacional em tempo real contra criação de novos executáveis.
 type FileWatcher struct {
-	watcher   *fsnotify.Watcher
-	engine    *threatintel.Engine
-	notifier  *notifier.Notifier
-	dirs      []string
-	mu        sync.RWMutex
-	running   bool
-	cancelFn  context.CancelFunc
-	recentMap map[string]time.Time
+	watcher       *fsnotify.Watcher
+	engine        *threatintel.Engine
+	notifier      *notifier.Notifier
+	dirs          []string
+	mu            sync.RWMutex
+	running       bool
+	cancelFn      context.CancelFunc
+	recentMap     map[string]time.Time
+	onThreatFound func(filePath, fileName, threatName, sha256 string)
 }
 
 // NewFileWatcher inicializa o monitor de diretórios sensíveis (Downloads, Temp, Startup).
@@ -126,6 +127,13 @@ func (fw *FileWatcher) Start() error {
 
 	go fw.loop(ctx)
 	return nil
+}
+
+// SetOnThreatFoundCallback define o listener de eventos para quando um arquivo malicioso for interceptado.
+func (fw *FileWatcher) SetOnThreatFoundCallback(cb func(filePath, fileName, threatName, sha256 string)) {
+	fw.mu.Lock()
+	defer fw.mu.Unlock()
+	fw.onThreatFound = cb
 }
 
 // Stop encerra o monitoramento.
@@ -232,6 +240,12 @@ func (fw *FileWatcher) handleNewFile(filePath string) {
 		}
 		if fw.notifier != nil {
 			_ = fw.notifier.Alert("🚨 AMEAÇA DETECTADA EM DISCO!", fmt.Sprintf("Arquivo: %s\nAmeaça: %s\nLocal: %s", fileName, result.ThreatName, filePath))
+		}
+		fw.mu.RLock()
+		cb := fw.onThreatFound
+		fw.mu.RUnlock()
+		if cb != nil {
+			go cb(filePath, fileName, result.ThreatName, hash)
 		}
 	} else if result.Verdict == cache.VerdictSafe {
 		if telemetry != nil {

@@ -33,10 +33,13 @@ var (
 	ColorCyanAlpha    = color.NRGBA{R: 6, G: 182, B: 212, A: 35}
 
 	// Aliases para compatibilidade visual
-	ColorEmerald      = ColorScoreGreen
-	ColorEmeraldHover = ColorBlueHover
-	ColorEmeraldSoft  = ColorScoreGreen
-	ColorEmeraldAlpha = ColorScoreGreenBg
+	ColorEmerald         = ColorScoreGreen
+	ColorEmeraldHover    = ColorBlueHover
+	ColorEmeraldSoft     = ColorScoreGreen
+	ColorEmeraldAlpha    = ColorScoreGreenBg
+	ColorScoreGreenAlpha = ColorScoreGreenBg
+	ColorDangerAlpha     = ColorDangerBg
+	ColorWarnAlpha       = ColorWarnBg
 
 	// Tipografia de alto contraste e legibilidade
 	ColorTextPrimary   = color.NRGBA{R: 248, G: 250, B: 252, A: 255} // #f8fafc - Branco Platinum

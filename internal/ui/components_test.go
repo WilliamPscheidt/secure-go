@@ -2,12 +2,17 @@ package ui
 
 import (
 	"image/color"
+	"path/filepath"
 	"testing"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
+
+	"secure-go/internal/cache"
+	"secure-go/internal/quarantine"
+	"secure-go/internal/threatintel"
 )
 
 func TestComponentsCreation(t *testing.T) {
@@ -73,5 +78,32 @@ func TestCustomThemeFont(t *testing.T) {
 		t.Error("esperava fonte mono válida")
 	} else {
 		t.Logf("Fonte Mono carregada: %s (tamanho=%d bytes)", monoFont.Name(), len(monoFont.Content()))
+	}
+}
+
+func TestQuarantineTabCreation(t *testing.T) {
+	app := test.NewApp()
+	w := app.NewWindow("Test")
+
+	tempDir := t.TempDir()
+	vaultDir := filepath.Join(tempDir, "vault")
+	v, err := quarantine.NewVault(vaultDir)
+	if err != nil {
+		t.Fatalf("falha ao criar cofre de teste: %v", err)
+	}
+
+	dbPath := filepath.Join(tempDir, "test.db")
+	store, _ := cache.NewStore(dbPath)
+	defer store.Close()
+	engine := threatintel.NewEngine(store, "")
+
+	tab := NewQuarantineTab(w, v, engine)
+	if tab == nil {
+		t.Fatal("NewQuarantineTab retornou nil")
+	}
+
+	content := tab.Content()
+	if content == nil {
+		t.Fatal("tab.Content retornou nil")
 	}
 }

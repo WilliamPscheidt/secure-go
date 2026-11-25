@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"secure-go/internal/cache"
+	"secure-go/internal/quarantine"
 	"secure-go/internal/scanner"
 	"secure-go/internal/threatintel"
 )
@@ -20,6 +21,7 @@ import (
 type DiskTab struct {
 	window       fyne.Window
 	engine       *threatintel.Engine
+	vault        *quarantine.Vault
 	diskScanner  *scanner.DiskScanner
 
 	pathEntry    *widget.Entry
@@ -40,10 +42,11 @@ type DiskTab struct {
 	mu           sync.RWMutex
 }
 
-func NewDiskTab(win fyne.Window, engine *threatintel.Engine) *DiskTab {
+func NewDiskTab(win fyne.Window, engine *threatintel.Engine, vault *quarantine.Vault) *DiskTab {
 	dt := &DiskTab{
 		window:      win,
 		engine:      engine,
+		vault:       vault,
 		diskScanner: scanner.NewDiskScanner(engine, 4),
 	}
 
@@ -151,6 +154,23 @@ func (dt *DiskTab) initUI() {
 		}
 		res := dt.results[id]
 		dt.mu.RUnlock()
+
+		if res.Verdict == cache.VerdictMalicious {
+			ShowThreatActionDialog(
+				dt.window,
+				dt.vault,
+				dt.engine,
+				res.FileName,
+				res.FilePath,
+				res.Details,
+				res.SHA256,
+				0,
+				func() {
+					dt.resultsList.Refresh()
+				},
+			)
+			return
+		}
 
 		content := fmt.Sprintf(
 			"Arquivo: %s\nTamanho: %d bytes\nCaminho: %s\n\nHash SHA-256:\n%s\n\nVeredito: %s\nOrigem: %s\nDetalhes: %s",

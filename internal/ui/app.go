@@ -9,6 +9,8 @@ import (
 
 	"secure-go/internal/cache"
 	"secure-go/internal/notifier"
+	"secure-go/internal/process"
+	"secure-go/internal/quarantine"
 	"secure-go/internal/scheduler"
 	"secure-go/internal/threatintel"
 	"secure-go/internal/watcher"
@@ -21,6 +23,7 @@ type App struct {
 	scheduler   *scheduler.Scheduler
 	notifier    *notifier.Notifier
 	fileWatcher *watcher.FileWatcher
+	vault       *quarantine.Vault
 }
 
 func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notifier.Notifier) *App {
@@ -31,6 +34,9 @@ func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notif
 	w.Resize(fyne.NewSize(1060, 700))
 	w.SetMaster()
 
+	// Inicia Cofre de Quarentena Criptografada AES-256
+	vault, _ := quarantine.NewVault("")
+
 	// Inicia FileWatcher em tempo real para pastas críticas (Downloads, Temp, Startup)
 	fileWatcher := watcher.NewFileWatcher(engine, notif)
 	_ = fileWatcher.Start()
@@ -38,8 +44,9 @@ func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notif
 	dashboardTab := NewDashboardTab(w, engine, sched, notif)
 	processTab := NewProcessTab(w, engine, sched)
 	networkTab := NewNetworkTab(w, engine)
-	diskTab := NewDiskTab(w, engine)
+	diskTab := NewDiskTab(w, engine, vault)
 	yaraTab := NewYaraTab(w, engine)
+	quarantineTab := NewQuarantineTab(w, vault, engine)
 	databaseTab := NewDatabaseTab(w, engine)
 	settingsTab := NewSettingsTab(w, engine, sched, notif)
 
@@ -47,6 +54,48 @@ func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notif
 	engine.SetOnNewVerdictCallback(func(rec *cache.HashRecord) {
 		databaseTab.Refresh()
 		dashboardTab.updateMetrics()
+	})
+
+	// Listener de ameaças do agendador (Scheduler): solicita permissão do usuário antes da quarentena
+	sched.AddThreatListener(func(p process.ProcessInfo, threatName string) {
+		fyne.Do(func() {
+			ShowThreatActionDialog(
+				w,
+				vault,
+				engine,
+				p.Name,
+				p.ExePath,
+				threatName,
+				p.SHA256,
+				p.PID,
+				func() {
+					quarantineTab.Reload()
+					databaseTab.Refresh()
+					dashboardTab.updateMetrics()
+				},
+			)
+		})
+	})
+
+	// Listener de ameaças do File Watcher em tempo real: solicita permissão do usuário
+	fileWatcher.SetOnThreatFoundCallback(func(filePath, fileName, threatName, sha256 string) {
+		fyne.Do(func() {
+			ShowThreatActionDialog(
+				w,
+				vault,
+				engine,
+				fileName,
+				filePath,
+				threatName,
+				sha256,
+				0,
+				func() {
+					quarantineTab.Reload()
+					databaseTab.Refresh()
+					dashboardTab.updateMetrics()
+				},
+			)
+		})
 	})
 
 	// Estrutura de Navegação em Sidebar Lateral (Estilo Malwarebytes & Purrweb)
@@ -63,6 +112,7 @@ func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notif
 		{"Mapa de Rede", IconFANetwork, networkTab.Content(), nil},
 		{"Scanner de Disco", IconFADisk, diskTab.Content(), nil},
 		{"Regras YARA", IconFACode, yaraTab.Content(), nil},
+		{"Quarentena", IconFAVault, quarantineTab.Content(), nil},
 		{"Banco de Hashes", IconFADatabase, databaseTab.Content(), nil},
 		{"Configurações", IconFAGear, settingsTab.Content(), nil},
 	}
@@ -146,7 +196,7 @@ func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notif
 	brandSub := canvas.NewText("CYBER DEFENDER & THREAT MONITOR", ColorTextSecondary)
 	brandSub.TextSize = 11
 
-	topBannerStatusPill := NewPillBadge("● TEMPO REAL ATIVO (WATCHER + YARA + HEURÍSTICA)", ColorCyan, ColorCyanAlpha)
+	topBannerStatusPill := NewPillBadge("● TEMPO REAL ATIVO (WATCHER + YARA + QUARENTENA)", ColorCyan, ColorCyanAlpha)
 
 	headerBanner := container.NewVBox(
 		container.NewPadded(
@@ -171,6 +221,7 @@ func NewApp(engine *threatintel.Engine, sched *scheduler.Scheduler, notif *notif
 		scheduler:   sched,
 		notifier:    notif,
 		fileWatcher: fileWatcher,
+		vault:       vault,
 	}
 }
 
