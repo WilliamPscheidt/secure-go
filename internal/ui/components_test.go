@@ -49,3 +49,29 @@ func TestCanvasArc(t *testing.T) {
 	}
 	arc.Resize(fyne.NewSize(160, 160))
 }
+
+func TestCustomThemeFont(t *testing.T) {
+	_ = test.NewApp()
+
+	th := NewCustomTheme()
+	regularFont := th.Font(fyne.TextStyle{})
+	if regularFont == nil {
+		t.Error("esperava fonte regular válida")
+	} else {
+		t.Logf("Fonte Regular carregada: %s (tamanho=%d bytes)", regularFont.Name(), len(regularFont.Content()))
+	}
+
+	boldFont := th.Font(fyne.TextStyle{Bold: true})
+	if boldFont == nil {
+		t.Error("esperava fonte bold válida")
+	} else {
+		t.Logf("Fonte Bold carregada: %s (tamanho=%d bytes)", boldFont.Name(), len(boldFont.Content()))
+	}
+
+	monoFont := th.Font(fyne.TextStyle{Monospace: true})
+	if monoFont == nil {
+		t.Error("esperava fonte mono válida")
+	} else {
+		t.Logf("Fonte Mono carregada: %s (tamanho=%d bytes)", monoFont.Name(), len(monoFont.Content()))
+	}
+}

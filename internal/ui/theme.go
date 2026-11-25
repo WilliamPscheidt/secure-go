@@ -2,6 +2,9 @@ package ui
 
 import (
 	"image/color"
+	"os"
+	"path/filepath"
+	"sync"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/theme"
@@ -123,7 +126,72 @@ func (c *CustomTheme) Size(name fyne.ThemeSizeName) float32 {
 		return 8
 	case theme.SizeNameScrollBarSmall:
 		return 4
+	case theme.SizeNameText:
+		return 13
+	case theme.SizeNameHeadingText:
+		return 18
+	case theme.SizeNameSubHeadingText:
+		return 14
+	case theme.SizeNameCaptionText:
+		return 11
 	default:
 		return c.Theme.Size(name)
 	}
+}
+
+var (
+	fontRegular    fyne.Resource
+	fontBold       fyne.Resource
+	fontItalic     fyne.Resource
+	fontBoldItalic fyne.Resource
+	fontMonospace  fyne.Resource
+	fontOnce       sync.Once
+)
+
+func initFonts() {
+	windir := os.Getenv("WINDIR")
+	if windir == "" {
+		windir = "C:\\Windows"
+	}
+	fontsDir := filepath.Join(windir, "Fonts")
+
+	loadFont := func(resName string, filenames ...string) fyne.Resource {
+		for _, fn := range filenames {
+			p := filepath.Join(fontsDir, fn)
+			data, err := os.ReadFile(p)
+			if err == nil && len(data) > 0 {
+				return fyne.NewStaticResource(resName, data)
+			}
+		}
+		return nil
+	}
+
+	// Segoe UI (Tipografia moderna e nítida do Windows 11 / Fluent Design)
+	fontRegular = loadFont("SegoeUI-Regular.ttf", "segoeui.ttf", "aptos.ttf", "calibri.ttf")
+	fontBold = loadFont("SegoeUI-Bold.ttf", "segoeuib.ttf", "aptos-bold.ttf", "calibrib.ttf")
+	fontItalic = loadFont("SegoeUI-Italic.ttf", "segoeuii.ttf", "aptos-italic.ttf", "calibrii.ttf")
+	fontBoldItalic = loadFont("SegoeUI-BoldItalic.ttf", "segoeuiz.ttf", "calibriz.ttf")
+	fontMonospace = loadFont("Consolas.ttf", "consola.ttf", "CascadiaMono.ttf", "cour.ttf")
+}
+
+// Font retorna a tipografia oficial moderna Segoe UI para toda a interface do aplicativo.
+func (c *CustomTheme) Font(style fyne.TextStyle) fyne.Resource {
+	fontOnce.Do(initFonts)
+
+	if style.Monospace && fontMonospace != nil {
+		return fontMonospace
+	}
+	if style.Bold && style.Italic && fontBoldItalic != nil {
+		return fontBoldItalic
+	}
+	if style.Bold && fontBold != nil {
+		return fontBold
+	}
+	if style.Italic && fontItalic != nil {
+		return fontItalic
+	}
+	if fontRegular != nil {
+		return fontRegular
+	}
+	return c.Theme.Font(style)
 }
