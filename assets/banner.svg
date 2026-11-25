@@ -1,0 +1,210 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" width="100%" height="100%">
+  <defs>
+    <!-- Gradientes de Fundo e Destaques -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#060913" />
+      <stop offset="40%" stop-color="#0b1329" />
+      <stop offset="80%" stop-color="#080f1e" />
+      <stop offset="100%" stop-color="#04060c" />
+    </linearGradient>
+
+    <linearGradient id="primaryTextGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="45%" stop-color="#60a5fa" />
+      <stop offset="100%" stop-color="#c084fc" />
+    </linearGradient>
+
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f2fe" />
+      <stop offset="50%" stop-color="#4facfe" />
+      <stop offset="100%" stop-color="#0052d4" />
+    </linearGradient>
+
+    <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#06b6d4" />
+    </linearGradient>
+
+    <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.6" />
+      <stop offset="50%" stop-color="#1e293b" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0.5" />
+    </linearGradient>
+
+    <!-- Brilho Neon (Glow) -->
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <filter id="shieldGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="15" result="blur1" />
+      <feGaussianBlur stdDeviation="30" result="blur2" />
+      <feMerge>
+        <feMergeNode in="blur2" />
+        <feMergeNode in="blur1" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Grid Cibernético de Fundo -->
+    <pattern id="cyberGrid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.75" stroke-opacity="0.4" />
+      <circle cx="40" cy="40" r="1" fill="#38bdf8" fill-opacity="0.3" />
+    </pattern>
+
+    <!-- Máscara Radial de Iluminação Central -->
+    <radialGradient id="ambientLight" cx="30%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#2563eb" stop-opacity="0.22" />
+      <stop offset="40%" stop-color="#0284c7" stop-opacity="0.10" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <style>
+    .title-font { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; font-weight: 900; }
+    .body-font  { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif; font-weight: 500; }
+    .mono-font  { font-family: 'Consolas', 'Courier New', monospace; font-weight: 600; }
+  </style>
+
+  <!-- Fundo Principal com Borda Arredondada -->
+  <rect width="1196" height="416" x="2" y="2" rx="16" fill="url(#bgGradient)" stroke="url(#borderGrad)" stroke-width="1.5" />
+
+  <!-- Padrão de Grade Tecnológica -->
+  <rect width="1196" height="416" x="2" y="2" rx="16" fill="url(#cyberGrid)" />
+
+  <!-- Feixe de Luz Ambiente -->
+  <rect width="1196" height="416" x="2" y="2" rx="16" fill="url(#ambientLight)" />
+
+  <!-- Detalhes HUD Cibernéticos (Cantoneiras Futuristas) -->
+  <path d="M 24 44 L 24 24 L 44 24" fill="none" stroke="#38bdf8" stroke-width="2.5" opacity="0.8" />
+  <path d="M 1176 44 L 1176 24 L 1156 24" fill="none" stroke="#38bdf8" stroke-width="2.5" opacity="0.8" />
+  <path d="M 24 376 L 24 396 L 44 396" fill="none" stroke="#10b981" stroke-width="2.5" opacity="0.8" />
+  <path d="M 1176 376 L 1176 396 L 1156 396" fill="none" stroke="#10b981" stroke-width="2.5" opacity="0.8" />
+
+  <!-- Linha Decorativa Superior com Marcadores -->
+  <line x1="60" y1="24" x2="280" y2="24" stroke="#334155" stroke-width="1" stroke-dasharray="4,4" />
+  <line x1="920" y1="24" x2="1140" y2="24" stroke="#334155" stroke-width="1" stroke-dasharray="4,4" />
+
+  <!-- Status Pill no Canto Superior Direito -->
+  <g transform="translate(930, 36)">
+    <rect width="210" height="30" rx="15" fill="#0f172a" stroke="#10b981" stroke-width="1" opacity="0.9" />
+    <circle cx="16" cy="15" r="4.5" fill="#10b981" filter="url(#neonGlow)">
+      <animate attributeName="opacity" values="1;0.4;1" dur="2s" repeatCount="indefinite" />
+    </circle>
+    <text x="30" y="20" class="mono-font" font-size="11" fill="#10b981" letter-spacing="1">100% PROTEGIDO (TEMPO REAL)</text>
+  </g>
+
+  <!-- Tag de Categoria Superior -->
+  <g transform="translate(68, 52)">
+    <rect width="290" height="26" rx="6" fill="#1e293b" fill-opacity="0.6" stroke="#38bdf8" stroke-width="0.8" stroke-opacity="0.4" />
+    <text x="12" y="17" class="mono-font" font-size="11" fill="#38bdf8" letter-spacing="1.5">⚡ ENTERPRISE DEFENSE • WIN64</text>
+  </g>
+
+  <!-- ==================== EMBLEMA DO ESCUDO CYBER (LADO ESQUERDO) ==================== -->
+  <g transform="translate(90, 110)">
+    <!-- Círculos de Radar Concêntricos com Pulso -->
+    <circle cx="75" cy="85" r="95" fill="none" stroke="#0284c7" stroke-width="1" stroke-opacity="0.15" stroke-dasharray="6,6" />
+    <circle cx="75" cy="85" r="115" fill="none" stroke="#38bdf8" stroke-width="0.75" stroke-opacity="0.1" />
+
+    <!-- Sombra/Glow do Escudo Principal -->
+    <path d="M 75 10 L 140 38 C 140 102 112 145 75 168 C 38 145 10 102 10 38 Z" fill="#0284c7" opacity="0.3" filter="url(#shieldGlow)" />
+
+    <!-- Escudo Externo -->
+    <path d="M 75 10 L 140 38 C 140 102 112 145 75 168 C 38 145 10 102 10 38 Z" fill="#091024" stroke="url(#shieldGrad)" stroke-width="3" />
+
+    <!-- Escudo Interno (Vidro Translúcido) -->
+    <path d="M 75 24 L 126 47 C 126 98 103 134 75 152 C 47 134 24 98 24 47 Z" fill="#0e1b38" fill-opacity="0.8" stroke="#38bdf8" stroke-width="1.2" stroke-opacity="0.5" />
+
+    <!-- Detalhe Tecnológico (Grid de Circuito Interno) -->
+    <line x1="75" y1="24" x2="75" y2="152" stroke="#38bdf8" stroke-width="1" stroke-opacity="0.25" />
+    <line x1="40" y1="85" x2="110" y2="85" stroke="#38bdf8" stroke-width="1" stroke-opacity="0.25" />
+    <circle cx="75" cy="85" r="28" fill="#0b1733" stroke="#00f2fe" stroke-width="2" />
+
+    <!-- Ícone de Checkmark / Proteção Ativa em Verde Neon -->
+    <path d="M 64 85 L 72 93 L 88 75" fill="none" stroke="#10b981" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#neonGlow)" />
+  </g>
+
+  <!-- ==================== BLOCO DE TÍTULO & BRANDING ==================== -->
+  <g transform="translate(290, 115)">
+    <!-- Título Principal com Gradiente Neon -->
+    <text x="0" y="58" class="title-font" font-size="64" fill="url(#primaryTextGrad)" letter-spacing="2" filter="url(#neonGlow)">SECURE-GO</text>
+
+    <!-- Versão / Badge de Destaque -->
+    <g transform="translate(420, 18)">
+      <rect width="64" height="24" rx="12" fill="#2563eb" fill-opacity="0.3" stroke="#60a5fa" stroke-width="1" />
+      <text x="14" y="16" class="mono-font" font-size="11" fill="#93c5fd" font-weight="700">v2.5</text>
+    </g>
+
+    <!-- Subtítulo Principal -->
+    <text x="2" y="98" class="body-font" font-size="20" fill="#f8fafc" font-weight="700" letter-spacing="0.5">
+      Monitor em Tempo Real, Inteligência Offline &amp; Analisador de Ameaças
+    </text>
+
+    <!-- Descrição Resumida -->
+    <text x="2" y="128" class="body-font" font-size="14.5" fill="#94a3b8" letter-spacing="0.2">
+      Construído em 100% Pure Go para Windows com motor YARA nativo, telemetria de rede e inspeção de processos.
+    </text>
+  </g>
+
+  <!-- Linha Divisória de Alta Tecnologia com Gradiente -->
+  <g transform="translate(290, 275)">
+    <line x1="0" y1="0" x2="840" y2="0" stroke="url(#borderGrad)" stroke-width="1" />
+    <circle cx="0" cy="0" r="2.5" fill="#38bdf8" />
+    <circle cx="840" cy="0" r="2.5" fill="#10b981" />
+  </g>
+
+  <!-- ==================== BADGES / CARDS DE FUNCIONALIDADES ==================== -->
+  <g transform="translate(68, 305)">
+    <!-- Badge 1: Pure Go -->
+    <g transform="translate(0, 0)">
+      <rect width="168" height="52" rx="10" fill="#0e172a" stroke="#1e293b" stroke-width="1" />
+      <rect width="168" height="52" rx="10" fill="none" stroke="#38bdf8" stroke-width="1" stroke-opacity="0.2" />
+      <text x="16" y="24" class="body-font" font-size="12" font-weight="700" fill="#38bdf8">⚡ 100% Pure Go</text>
+      <text x="16" y="40" class="body-font" font-size="10.5" fill="#64748b">Zero CGO / Nativo</text>
+    </g>
+
+    <!-- Badge 2: Regras YARA -->
+    <g transform="translate(184, 0)">
+      <rect width="180" height="52" rx="10" fill="#0e172a" stroke="#1e293b" stroke-width="1" />
+      <rect width="180" height="52" rx="10" fill="none" stroke="#60a5fa" stroke-width="1" stroke-opacity="0.2" />
+      <text x="16" y="24" class="body-font" font-size="12" font-weight="700" fill="#60a5fa">🛡️ Inteligência YARA</text>
+      <text x="16" y="40" class="body-font" font-size="10.5" fill="#64748b">Detecção Offline 0ms</text>
+    </g>
+
+    <!-- Badge 3: Smart SQLite -->
+    <g transform="translate(380, 0)">
+      <rect width="176" height="52" rx="10" fill="#0e172a" stroke="#1e293b" stroke-width="1" />
+      <rect width="176" height="52" rx="10" fill="none" stroke="#10b981" stroke-width="1" stroke-opacity="0.2" />
+      <text x="16" y="24" class="body-font" font-size="12" font-weight="700" fill="#10b981">💾 Smart SQLite</text>
+      <text x="16" y="40" class="body-font" font-size="10.5" fill="#64748b">Economia de 99% Cota</text>
+    </g>
+
+    <!-- Badge 4: Threat Network Map -->
+    <g transform="translate(572, 0)">
+      <rect width="176" height="52" rx="10" fill="#0e172a" stroke="#1e293b" stroke-width="1" />
+      <rect width="176" height="52" rx="10" fill="none" stroke="#a78bfa" stroke-width="1" stroke-opacity="0.2" />
+      <text x="16" y="24" class="body-font" font-size="12" font-weight="700" fill="#a78bfa">🌐 Mapa de Rede</text>
+      <text x="16" y="40" class="body-font" font-size="10.5" fill="#64748b">Sockets TCP por PID</text>
+    </g>
+
+    <!-- Badge 5: Heurística PE -->
+    <g transform="translate(764, 0)">
+      <rect width="168" height="52" rx="10" fill="#0e172a" stroke="#1e293b" stroke-width="1" />
+      <rect width="168" height="52" rx="10" fill="none" stroke="#f59e0b" stroke-width="1" stroke-opacity="0.2" />
+      <text x="16" y="24" class="body-font" font-size="12" font-weight="700" fill="#f59e0b">🎯 Authenticode &amp; PE</text>
+      <text x="16" y="40" class="body-font" font-size="10.5" fill="#64748b">Win32 Trust Verify</text>
+    </g>
+
+    <!-- Badge 6: Threat Intel -->
+    <g transform="translate(948, 0)">
+      <rect width="184" height="52" rx="10" fill="#0e172a" stroke="#1e293b" stroke-width="1" />
+      <rect width="184" height="52" rx="10" fill="none" stroke="#ec4899" stroke-width="1" stroke-opacity="0.2" />
+      <text x="16" y="24" class="body-font" font-size="12" font-weight="700" fill="#ec4899">🚀 VT &amp; Abuse.ch</text>
+      <text x="16" y="40" class="body-font" font-size="10.5" fill="#64748b">70+ Motores de Nuvem</text>
+    </g>
+  </g>
+</svg>

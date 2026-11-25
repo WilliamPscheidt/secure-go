@@ -178,33 +178,33 @@ func (e *Engine) AnalyzeHash(ctx context.Context, sha256, fileName, filePath str
 		}
 	}
 
+	// Proteção contra auto-varredura: não alertar sobre o próprio binário do SecureGo ou de testes
+	if isSelfExecutable(fileName, filePath) {
+		record := &cache.HashRecord{
+			SHA256:       sha256,
+			FileName:     fileName,
+			FilePath:     filePath,
+			Verdict:      cache.VerdictSafe,
+			ThreatName:   "",
+			Positives:    0,
+			TotalEngines: 0,
+			Source:       "SecureGo (Auto-Proteção)",
+			CheckedAt:    time.Now(),
+			MBChecked:    true,
+			VTChecked:    true,
+		}
+		_ = e.store.Save(record)
+		e.notifyNewVerdict(record)
+		return &ScanResult{
+			SHA256:       sha256,
+			Verdict:      cache.VerdictSafe,
+			Source:       "SecureGo (Auto-Proteção)",
+			Details:      "Binário legítimo do próprio motor de proteção SecureGo.",
+		}, nil
+	}
+
 	// 1.1 Camada Heurística & Certificados Digitais Authenticode (Economiza cota de API)
 	if filePath != "" {
-		// Proteção contra auto-varredura: não alertar sobre o próprio binário do SecureGo ou de testes
-		if isSelfExecutable(filePath) {
-			record := &cache.HashRecord{
-				SHA256:       sha256,
-				FileName:     fileName,
-				FilePath:     filePath,
-				Verdict:      cache.VerdictSafe,
-				ThreatName:   "",
-				Positives:    0,
-				TotalEngines: 0,
-				Source:       "SecureGo (Auto-Proteção)",
-				CheckedAt:    time.Now(),
-				MBChecked:    true,
-				VTChecked:    true,
-			}
-			_ = e.store.Save(record)
-			e.notifyNewVerdict(record)
-			return &ScanResult{
-				SHA256:       sha256,
-				Verdict:      cache.VerdictSafe,
-				Source:       "SecureGo (Auto-Proteção)",
-				Details:      "Binário legítimo do próprio motor de proteção SecureGo.",
-			}, nil
-		}
-
 		if _, statErr := os.Stat(filePath); statErr == nil {
 			// A) Verificação de Assinatura Authenticode nativa
 			sigInfo := heuristics.VerifyAuthenticode(filePath)
@@ -465,20 +465,26 @@ func (e *Engine) notifyNewVerdict(rec *cache.HashRecord) {
 }
 
 // isSelfExecutable verifica se o arquivo sendo analisado é o próprio binário do SecureGo ou um executável de testes do projeto.
-func isSelfExecutable(filePath string) bool {
+func isSelfExecutable(fileName, filePath string) bool {
+	// 1. Verifica pelo nome do executável
+	name := strings.ToLower(fileName)
+	if name == "secure-go.exe" || name == "secure-go-v2.exe" || strings.HasSuffix(name, ".test.exe") {
+		return true
+	}
+
 	if filePath == "" {
 		return false
 	}
 	cleanTarget := filepath.Clean(filePath)
 
-	// 1. Verifica contra o processo atualmente em execução
+	// 2. Verifica contra o processo atualmente em execução
 	if selfExe, err := os.Executable(); err == nil && selfExe != "" {
 		if strings.EqualFold(cleanTarget, filepath.Clean(selfExe)) {
 			return true
 		}
 	}
 
-	// 2. Proteção contra binários de teste ou instâncias do SecureGo
+	// 3. Proteção contra binários de teste ou instâncias do SecureGo no caminho
 	base := strings.ToLower(filepath.Base(cleanTarget))
 	if base == "secure-go.exe" || base == "secure-go-v2.exe" || strings.HasSuffix(base, ".test.exe") {
 		return true

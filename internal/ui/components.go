@@ -124,11 +124,17 @@ func NewProtectionScoreGauge(score int, statusText string) fyne.CanvasObject {
 	bg.StrokeColor = ColorCardBorder
 	bg.StrokeWidth = 1.0
 
-	// Arco de fundo (trilho cinza)
-	trackArc := canvas.NewArc(140, 40, 0.84, ColorCardBorder)
-	trackArc.SetMinSize(fyne.NewSize(150, 110))
+	// Arco em ferradura / velocímetro (de -135° na base esquerda até +135° na base direita = 270° de amplitude total)
+	startAngle := float32(-135)
+	endAngle := float32(135)
+	totalSpan := endAngle - startAngle // 270 graus
 
-	// Arco preenchido (verde esmeralda ou ciano dinâmico)
+	// Trilho de fundo (cinza escuro sutil)
+	trackArc := canvas.NewArc(startAngle, endAngle, 0.82, ColorCardBorder)
+	trackArc.CornerRadius = canvas.RadiusMaximum
+	trackArc.SetMinSize(fyne.NewSize(160, 140))
+
+	// Cor do preenchimento baseada no score
 	fillCol := ColorScoreGreen
 	if score < 70 {
 		fillCol = ColorWarn
@@ -137,9 +143,16 @@ func NewProtectionScoreGauge(score int, statusText string) fyne.CanvasObject {
 		fillCol = ColorDanger
 	}
 
-	// 100% preenche o arco inteiro de 140° a 40° (260 graus de amplitude)
-	fillArc := canvas.NewArc(140, 40, 0.84, fillCol)
-	fillArc.SetMinSize(fyne.NewSize(150, 110))
+	// Arco preenchido proporcional ao score
+	fillSpan := totalSpan * float32(score) / 100.0
+	fillEnd := startAngle + fillSpan
+	if fillEnd <= startAngle {
+		fillEnd = startAngle + 0.1
+	}
+
+	fillArc := canvas.NewArc(startAngle, fillEnd, 0.82, fillCol)
+	fillArc.CornerRadius = canvas.RadiusMaximum
+	fillArc.SetMinSize(fyne.NewSize(160, 140))
 
 	gaugeStack := container.NewStack(trackArc, fillArc)
 
@@ -172,13 +185,18 @@ func NewProtectionScoreGauge(score int, statusText string) fyne.CanvasObject {
 
 	checklist := container.NewVBox(item1, item2, item3, item4)
 
+	headerTitle := canvas.NewText("Este Computador", ColorTextPrimary)
+	headerTitle.TextSize = 13
+	headerTitle.TextStyle = fyne.TextStyle{Bold: true}
+
+	headerBadge := canvas.NewText(fmt.Sprintf("%d%% Protegido", score), fillCol)
+	headerBadge.TextSize = 12
+	headerBadge.TextStyle = fyne.TextStyle{Bold: true}
+
 	cardBody := container.NewVBox(
-		container.NewBorder(nil, nil,
-			canvas.NewText("Este Computador", ColorTextPrimary),
-			canvas.NewText("100% Protegido", ColorScoreGreen),
-		),
+		container.NewBorder(nil, nil, headerTitle, headerBadge),
 		canvas.NewLine(ColorCardBorder),
-		gaugeCombined,
+		container.NewPadded(gaugeCombined),
 		canvas.NewLine(ColorCardBorder),
 		checklist,
 	)
